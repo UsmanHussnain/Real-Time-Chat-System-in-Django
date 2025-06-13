@@ -1,0 +1,69 @@
+{% extends 'layouts/blank.html' %}
+
+{% block content %}
+<wrapper class="block max-w-2xl mx-auto my-10 px-6">
+    <div id="chat_window" class="h-[45rem] flex flex-col bg-gray-800 rounded-2xl shadow-2xl relative p-1">
+        <div class="flex justify-center text-emerald-400 bg-gray-800 p-2 sticky top-0 z-10">
+            {% if other_users %}
+            <div id="online-icon" class="gray-dot absolute top-2 left-2"></div>
+                <a href="{% url 'profile' other_users.username %}">
+                    <div class="flex items-center gap-2 p-4 sticky top-0 z-10">
+                        <img class="w-10 h-10 rounded-full object-cover" src="{{ other_users.profile.avatar }}" alt="{{ other_users.username }}'s avatar">
+                        <div>
+                            <span class="font-bold text-white ">{{ other_users.profile.name }}</span>
+                            <span class="text-sm font-light text-gray-400">@{{ other_users.username }}</span>
+                        </div>
+                    </div>
+                </a>
+            {% else%}
+                <div id="online-icon" class="gray-dot absolute top-2 left-2"></div>
+                <span id="online-count" class="pr-1"></span>online
+            {% endif %}
+        </div>
+
+
+        <div id='chat_container' class="overflow-y-auto grow">
+            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4">
+                {% for message in chat_messages reversed %}
+                {% include 'a_rtchat/chat_message.html' %} 
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="sticky bottom-0 z-10 p-2 bg-gray-800">
+            <div class="flex items-center rounded-xl px-2 py-2">
+                <div id="chat_form" class="w-full">
+                    <form id="chat_message_form" 
+                        hx-ext="ws"
+                        ws-connect="/ws/chatroom/{{ chatroom_name }}/"
+                        ws-send
+                        _="on htmx:wsAfterSend reset() me">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                        {% comment %} <button type="submit">Send</button> {% endcomment %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</wrapper>
+{% endblock %}
+{% block javascript %}
+    <script>
+        function scrollToBottom() {
+            const container = document.getElementById('chat_container');
+            container.scrollTop = container.scrollHeight;
+            console.log("Scrolled to bottom"); // Debug
+        }
+        document.addEventListener('htmx:wsOpen', function() {
+            console.log("WebSocket connected");
+        });
+        document.addEventListener('htmx:wsAfterSend', function() {
+            console.log("Message sent via WebSocket");
+        });
+        document.addEventListener('htmx:wsError', function(e) {
+            console.error("WebSocket error:", e.detail);
+        });
+        scrollToBottom();
+    </script>
+    <script>htmx.logAll();</script>
+{% endblock %}
