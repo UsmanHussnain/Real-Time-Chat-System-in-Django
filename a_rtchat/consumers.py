@@ -87,10 +87,15 @@ class ChatroomConsumer(WebsocketConsumer):
 
     def online_count_handler(self, event):
         online_count = event['online_count']
+        
+        context = {
+            'online_count': online_count,
+            'chatroom': self.chatroom,
+            }
         # Update online count
         html = render_to_string(
             "a_rtchat/partials/online_count.html",
-            {'online_count': online_count}
+            context
         )
         # Update online-icon for public chats
         icon_html = f'<div id="online-icon" class="{"green-dot" if online_count > 0 else "gray-dot"} absolute top-2 left-2"></div>'

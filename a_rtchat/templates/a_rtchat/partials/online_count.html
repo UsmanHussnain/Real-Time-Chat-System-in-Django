@@ -21,3 +21,22 @@
 {% else %}
     <div id="online-icon" class =" gray-dot absolute top-2 left-2"></div>
 {% endif %}
+
+
+<ul id="groupchat_members" class="flex gap-4">
+                {% for member in chat_group.members.all %}  
+                <li>
+                    <a href="{% url 'profile' member.username %}" class="flex flex-col items-center gap-2 w-20 justify-center text-gray-400">
+                        <div class="relative">
+                            {% if member  in chat_group.users_online.all %}
+                            <div class="green-dot border-2 border-gray-800 absolute bottom-0 right0- rounded-full"></div>
+                            {% else %}
+                            <div class="gray-dot border-2 border-gray-800 absolute bottom-0 right0- rounded-full"></div>
+                            {% endif %}
+                            <img src="{{ member.profile.avatar }}" alt="{{ member.username }}'s avatar" class="w-14 h-14 rounded-full object-cover">
+                        </div>
+                            <span>{{ member.profile.name }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+</ul>

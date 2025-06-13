@@ -1,9 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from .models import *
-from .forms import ChatMessageCreationForm
+from .forms import *
 from django.contrib.auth.models import User
 from django.http import Http404
+from django.contrib import messages
 
 
 @login_required
@@ -21,6 +22,13 @@ def chat_view(request, chatroom_name='public-chat'):
                 other_users = member
                 break
 
+    if chat_group.groupchat_name:
+        if request.user not in chat_group.members.all():
+            if request.user.emailaddress_set.filter(verified=True).exists():
+                chat_group.members.add(request.user)
+            else:
+                messages.warning(request, "You need to verify your email to join this chat.")
+                return redirect('profile-settings')
     if request.htmx and request.method == 'POST':
         form = ChatMessageCreationForm(request.POST)
         if form.is_valid():
@@ -39,6 +47,7 @@ def chat_view(request, chatroom_name='public-chat'):
         'form': form,
         'other_users': other_users,
         'chatroom_name': chatroom_name,
+        'chat_group': chat_group,
         
     }
     return render(request, 'a_rtchat/chat.html', context)
@@ -65,3 +74,74 @@ def get_or_create_chatroom(request, username):
 
     return redirect('chatroom', chatroom.group_name)
 
+
+
+@login_required
+def create_groupchat(request):
+    form = newGroupForm(request.POST or None)
+    if request.method == 'POST':
+        if form.is_valid():
+            new_groupchat = form.save(commit=False)
+            new_groupchat.admin = request.user
+            new_groupchat.save()
+            new_groupchat.members.add(request.user)
+            return redirect('chatroom', new_groupchat.group_name)
+
+    context = {
+        'form': form,
+    }
+    return render(request, 'a_rtchat/create_groupchat.html', context)
+
+@login_required
+def chatroom_edit_view(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if request.user != chat_group.admin:
+        raise Http404()
+
+    form = ChatRoomEditForm(instance=chat_group)
+    
+    if request.method == 'POST':
+        form = ChatRoomEditForm(request.POST, instance=chat_group)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Chatroom updated successfully.")
+            remove_members = request.POST.getlist('remove_members')
+            for member_id in remove_members:
+                member = User.objects.get(id=member_id)
+                chat_group.members.remove(member)
+            return redirect('chatroom', chatroom_name)
+    context = {
+        'form': form,
+        'chat_group': chat_group,
+    }
+    return render(request, 'a_rtchat/chatroom_edit.html', context)
+
+
+@login_required
+def chatroom_delete_view(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if request.user != chat_group.admin:
+        raise Http404()
+
+    if request.method == 'POST':
+        chat_group.delete()
+        messages.success(request, "Chatroom deleted successfully.")
+        return redirect('home')
+
+    context = {
+        'chat_group': chat_group,
+    }
+    return render(request, 'a_rtchat/chatroom_delete.html', context)
+
+
+@login_required
+def chatroom_leave_view(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if request.user not in chat_group.members.all():
+        raise Http404()
+
+    if request.method == 'POST':
+        chat_group.members.remove(request.user)
+        messages.success(request, "You have left the chatroom.")
+        return redirect('home')
+    return redirect('home')
