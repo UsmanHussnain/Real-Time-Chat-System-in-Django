@@ -19,6 +19,8 @@ class ChatroomConsumer(WebsocketConsumer):
                     group.group_name,
                     {
                         'type': 'update_online_count' if not group.is_private else 'update_private_online_status',
+                        'user_id': self.user.id,
+                        'is_online': False,
                     }
                 )
         
@@ -73,13 +75,19 @@ class ChatroomConsumer(WebsocketConsumer):
             'user': self.user,
         }
         html = render_to_string("a_rtchat/partials/chat_messages_p.html", context=context)
-        self.send(text_data=html)
+        self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'message_html': html
+        }))
 
     def update_online_count(self):
-        online_count = self.chatroom.user_online.count() - 1
+        online_count = self.chatroom.user_online.count()
         event = {
             'type': 'online_count_handler',
             'online_count': online_count,
+            'is_online': online_count > 0,
+            'user_id': self.user.id,
+            'is_user_online': self.user in self.chatroom.user_online.all(),
         }
         async_to_sync(self.channel_layer.group_send)(
             self.chatroom_name, event
@@ -87,38 +95,40 @@ class ChatroomConsumer(WebsocketConsumer):
 
     def online_count_handler(self, event):
         online_count = event['online_count']
-        
+        is_online = event['is_online']
+        user_id = event['user_id']
+        is_user_online = event['is_user_online']
         context = {
             'online_count': online_count,
             'chatroom': self.chatroom,
-            }
-        # Update online count
-        html = render_to_string(
-            "a_rtchat/partials/online_count.html",
-            context
-        )
-        # Update online-icon for public chats
-        icon_html = f'<div id="online-icon" class="{"green-dot" if online_count > 0 else "gray-dot"} absolute top-2 left-2"></div>'
-        self.send(text_data=html + icon_html)
+        }
+        html = render_to_string("a_rtchat/partials/online_count.html", context)
+        self.send(text_data=json.dumps({
+            'type': 'online_status',
+            'html': html,
+            'is_online': is_online,
+            'user_id': user_id,
+            'is_user_online': is_user_online,
+        }))
 
     def update_private_online_status(self):
         if self.chatroom.is_private:
             for member in self.chatroom.members.all():
-                if member != self.user:
-                    other_user = member
-                    break
-            else:
-                other_user = None
-            is_online = other_user in self.chatroom.user_online.all() if other_user else False
-            event = {
-                'type': 'private_online_status_handler',
-                'is_online': is_online,
-            }
-            async_to_sync(self.channel_layer.group_send)(
-                self.chatroom_name, event
-            )
+                is_online = member in self.chatroom.user_online.all()
+                event = {
+                    'type': 'private_online_status_handler',
+                    'is_online': is_online,
+                    'user_id': member.id,
+                }
+                async_to_sync(self.channel_layer.group_send)(
+                    self.chatroom_name, event
+                )
 
     def private_online_status_handler(self, event):
         is_online = event['is_online']
-        html = f'<div id="online-icon" class="{"green-dot" if is_online else "gray-dot"} absolute top-2 left-2"></div>'
-        self.send(text_data=html)
+        user_id = event['user_id']
+        self.send(text_data=json.dumps({
+            'type': 'private_online_status',
+            'is_online': is_online,
+            'user_id': user_id,
+        }))

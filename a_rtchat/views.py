@@ -5,6 +5,7 @@ from .forms import *
 from django.contrib.auth.models import User
 from django.http import Http404
 from django.contrib import messages
+from django.db import transaction
 
 
 @login_required
@@ -57,20 +58,54 @@ def get_or_create_chatroom(request, username):
     if request.user.username == username:
         return redirect('home')
     
-    other_user = User.objects.get(username=username)
+    other_user = get_object_or_404(User, username=username)
+    
+    # Check if private chat already exists between these two users
     my_chatrooms = request.user.chat_groups.filter(is_private=True)
-
+    
+    chatroom = None
     if my_chatrooms.exists():
-        for chatroom in my_chatrooms:
-            if other_user in chatroom.members.all():
-                chatroom = chatroom
+        for room in my_chatrooms:
+            if other_user in room.members.all():
+                chatroom = room
                 break
+    
+    # If no existing chatroom found, create new one
+    if not chatroom:
+        try:
+            with transaction.atomic():
+                # Generate consistent group name to avoid duplicates
+                user_ids = sorted([request.user.id, other_user.id])
+                group_name = f"private-{user_ids[0]}-{user_ids[1]}"
+                
+                # Check if chatroom with this name already exists
+                existing_chatroom = ChatGroup.objects.filter(group_name=group_name).first()
+                if existing_chatroom:
+                    chatroom = existing_chatroom
+                    # Make sure both users are members
+                    if request.user not in chatroom.members.all():
+                        chatroom.members.add(request.user)
+                    if other_user not in chatroom.members.all():
+                        chatroom.members.add(other_user)
+                else:
+                    # Create new chatroom with specific group_name
+                    chatroom = ChatGroup.objects.create(
+                        group_name=group_name,
+                        is_private=True
+                    )
+                    chatroom.members.add(other_user, request.user)
+        except Exception as e:
+            # If error occurs, try to find any existing private chat
+            existing_chat = ChatGroup.objects.filter(
+                is_private=True,
+                members=request.user
+            ).filter(members=other_user).first()
+            
+            if existing_chat:
+                chatroom = existing_chat
             else:
-                chatroom = ChatGroup.objects.create(is_private=True)
-                chatroom.members.add(other_user, request.user)
-    else:
-        chatroom = ChatGroup.objects.create(is_private=True)
-        chatroom.members.add(other_user, request.user)
+                messages.error(request, "Error creating chat. Please try again.")
+                return redirect('home')
 
     return redirect('chatroom', chatroom.group_name)
 
