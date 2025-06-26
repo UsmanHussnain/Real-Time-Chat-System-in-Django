@@ -1,48 +1,60 @@
 {% load static %}
 <header class="flex items-center justify-between bg-gray-800 h-20 px-8 text-white sticky top-0 z-40">
-    <div>
+    <div class="flex item-center">
         <a class="flex items-center gap-2" href="/">
             <img class="h-6" src="{% static 'images/logo.svg' %}" alt="Logo"/>
             <span class="text-lg font-bold">Real-Time Chat</span>
         </a>
+        <div class="online-user-count">
+            {% if request.user.is_authenticated %}
+                <span id="online-count-display" class="bg-red-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4">
+                    Loading...
+                </span>
+            {% endif %}
+        </div>
     </div>
     <nav class="block relative">
         <ul class="navitems flex items-center justify-center h-full">
             {% if request.user.is_authenticated %}
                 <li x-data="{ dropdownOpen: false }" class="relative">
                     <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none">
+                        <div id="online-in-chat"></div>
                         Chats
                         <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
                     </a>
                     <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow rounded-lg w-40 p-2 z-20"
                     x-transition:enter="duration-300 ease-out"
                     x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
-                    x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-                    >
-                        <ul class="hoverlist [&>li>a]:justify-end">
-                            <li><a href="{% url 'home' %}">
-                                <img class="h-6 w-6 m-1 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
-                                Public Group Chat
+                    x-transition:enter-end="opacity-100 translate-y-0 scale-100">
+                        <ul id="chats-list" class="hoverlist [&>li>a]:justify-end">
+                            <li class="relative">
+                                <a href="{% url 'home' %}">
+                                    <img class="h-6 w-6 m-1 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                                    Public Group Chat
+                                    <div id="public-chat-status" class="absolute top-2 right-2 z-20"></div>
                                 </a>
                             </li>
-                            {% for chatroom in user.chat_groups.all %}
+                            {% for chatroom in request.user.chat_groups.all %}
                                 {% if chatroom.groupchat_name %}
-                                    <li>
+                                    <li class="relative">
                                         <a class="leading-5" href="{% url 'chatroom' chatroom.group_name %}">
                                             <img class="h-6 w-6 m-1 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                                             {{ chatroom.groupchat_name | slice:":30" }}
+                                            <div class="chat-status-{{ chatroom.group_name }} absolute top-2 right-2 z-20"></div>
                                         </a>
                                     </li>
                                 {% endif %}
                             {% endfor %}
-                            {% for chatroom in user.chat_groups.all %}
+                            {% for chatroom in request.user.chat_groups.all %}
                                 {% if chatroom.is_private %}
                                     {% for member in chatroom.members.all %}
-                                        {% if member != user %}
-                                            <li><a href="{% url 'chatroom' chatroom.group_name %}">
-                                                <img class="h-6 w-6 m-1 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
-                                                {{ member.profile.name}}
-                                            </a>
+                                        {% if member != request.user %}
+                                            <li class="relative">
+                                                <a href="{% url 'chatroom' chatroom.group_name %}">
+                                                    <img class="h-6 w-6 m-1 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
+                                                    {{ member.profile.name}}
+                                                    <div class="user-status-{{ member.id }} absolute top-2 right-2 z-20"></div>
+                                                </a>
                                             </li>
                                         {% endif %}
                                     {% endfor %}
@@ -51,9 +63,6 @@
                         </ul>
                     </div>
                 </li>
-
-
-                    
             
                 <li x-data="{ dropdownOpen: false }" class="relative">
                     <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none">
@@ -83,3 +92,109 @@
         </ul>
     </nav>
 </header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/online_status/`;
+        const onlineStatusSocket = new WebSocket(wsUrl);
+
+        // Initial state
+        updateOnlineCount(0);
+        updateOnlineInChat(false);
+
+        onlineStatusSocket.onopen = function(e) {
+            console.log('Online Status WebSocket connected');
+        };
+
+        onlineStatusSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'online_status') {
+                // Update online user count
+                if (data.online_count !== undefined) {
+                    updateOnlineCount(data.online_count);
+                }
+                
+                // Parse the HTML response
+                if (data.html) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data.html, 'text/html');
+                    
+                    // Update online-in-chat indicator
+                    const onlineInChatElement = doc.querySelector('#online-in-chat');
+                    if (onlineInChatElement) {
+                        const onlineInChat = document.querySelector('#online-in-chat');
+                        if (onlineInChat) {
+                            onlineInChat.innerHTML = onlineInChatElement.innerHTML;
+                        }
+                    }
+                    
+                    // Update status indicators
+                    const statusElements = doc.querySelectorAll('.status-indicator');
+                    statusElements.forEach(el => {
+                        const targetClass = el.getAttribute('data-target');
+                        const targetElements = document.querySelectorAll(`.${targetClass}`);
+                        targetElements.forEach(target => {
+                            target.innerHTML = el.innerHTML;
+                        });
+                    });
+                }
+            }
+        };
+
+        onlineStatusSocket.onclose = function(e) {
+            console.log('Online Status WebSocket disconnected, reconnecting...');
+            updateOnlineCount(0, true);
+            setTimeout(() => {
+                document.dispatchEvent(new Event('DOMContentLoaded'));
+            }, 3000);
+        };
+
+        onlineStatusSocket.onerror = function(e) {
+            console.error('Online Status WebSocket error:', e);
+            updateOnlineCount(0, true);
+        };
+
+        function updateOnlineCount(count, isError = false) {
+            const display = document.querySelector('#online-count-display');
+            if (display) {
+                if (isError) {
+                    display.textContent = 'Offline';
+                    display.className = 'bg-gray-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                } else if (count > 0) {
+                    display.textContent = `${count} online`;
+                    display.className = 'bg-green-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                } else {
+                    display.textContent = '0 online';
+                    display.className = 'bg-gray-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                }
+            }
+        }
+
+        function updateOnlineInChat(isOnline) {
+            const onlineInChat = document.querySelector('#online-in-chat');
+            if (onlineInChat) {
+                onlineInChat.innerHTML = isOnline ? 
+                    '<div class="green-dot"></div>' : 
+                    '<div class="graylight-dot"></div>';
+            }
+        }
+    });
+</script>
+
+<style>
+    .green-dot {
+        height: 8px;
+        width: 8px;
+        background-color: #10B981;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .graylight-dot {
+        height: 8px;
+        width: 8px;
+        background-color: #D1D5DB;
+        border-radius: 50%;
+        display: inline-block;
+    }
+</style>
