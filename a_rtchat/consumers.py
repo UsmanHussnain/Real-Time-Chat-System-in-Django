@@ -1,3 +1,4 @@
+# consumers.py
 from channels.generic.websocket import WebsocketConsumer
 from .models import *
 from django.shortcuts import get_object_or_404
@@ -32,7 +33,6 @@ class ChatroomConsumer(WebsocketConsumer):
             self.channel_name
         )
         
-        # Add and update the user to the online users in the chatroom
         if self.user not in self.chatroom.user_online.all():
             self.chatroom.user_online.add(self.user)
             self.update_online_count()
@@ -47,7 +47,6 @@ class ChatroomConsumer(WebsocketConsumer):
             self.channel_name
         )
 
-        # Remove and update the user from online users in the chatroom
         if self.user in self.chatroom.user_online.all():
             self.chatroom.user_online.remove(self.user)
             self.update_online_count()
@@ -73,14 +72,16 @@ class ChatroomConsumer(WebsocketConsumer):
     def message_handler(self, event):
         message_id = event['message_id']
         message = ChatMessage.objects.get(id=message_id)
+        # Render message HTML with the correct user context
         context = {
             'message': message,
-            'user': self.user,
+            'user': self.user,  # Use the receiving user's context
             'chatgroup': self.chatroom,
         }
-        html = render_to_string("a_rtchat/partials/chat_messages_p.html", context=context)
+        # Always render using chat_message.html to ensure correct sender/receiver styling
+        html = render_to_string("a_rtchat/chat_message.html", context=context)
         self.send(text_data=json.dumps({
-            'type': 'chat_message',
+            'type': 'chat_message',  # Use 'chat_message' for both text and files
             'message_html': html
         }))
 
@@ -101,7 +102,7 @@ class ChatroomConsumer(WebsocketConsumer):
         online_count = event['online_count']
         is_online = event['is_online']
         user_id = event['user_id']
-        is_user_online = event['is_user_online']
+        is_user_multiple = event['is_user_online']
 
         chat_messages = self.chatroom.chat_messages.all()[:30]
         author_ids = [message.author.id for message in chat_messages]
@@ -119,7 +120,7 @@ class ChatroomConsumer(WebsocketConsumer):
             'html': html,
             'is_online': is_online,
             'user_id': user_id,
-            'is_user_online': is_user_online,
+            'isJon': is_user_multiple,
         }))
 
     def update_private_online_status(self):
@@ -179,7 +180,7 @@ class OnlineStatusConsumer(WebsocketConsumer):
 
     def online_status(self):
         if hasattr(self, 'group'):
-            online_count = self.group.user_online.count() - 1  # Exclude self
+            online_count = self.group.user_online.count() - 1
             event = {
                 'type': 'online_status_handler',
                 'online_count': online_count,

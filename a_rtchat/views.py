@@ -3,9 +3,12 @@ from django.contrib.auth.decorators import login_required
 from .models import *
 from .forms import *
 from django.contrib.auth.models import User
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.contrib import messages
 from django.db import transaction
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.template.loader import render_to_string
 
 
 @login_required
@@ -180,3 +183,58 @@ def chatroom_leave_view(request, chatroom_name):
         messages.success(request, "You have left the chatroom.")
         return redirect('home')
     return redirect('home')
+
+@login_required
+def chat_file_upload(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if request.htmx and request.FILES:
+        file = request.FILES.get('file')
+        if file:
+            message = ChatMessage.objects.create(
+                file=file,
+                author=request.user,
+                group=chat_group,
+            )
+            channel_layer = get_channel_layer()
+            message_html = render_to_string('a_rtchat/partials/chat_messages_p.html', {
+                'message': message,
+                'user': request.user
+            })
+            event = {
+                'type': 'message_handler',
+                'message_id': message.id,
+                'message_html': message_html
+            }
+            async_to_sync(channel_layer.group_send)(
+                chatroom_name, event
+            )
+            return HttpResponse(status=200)
+    return HttpResponse(status=400)
+@login_required
+def chat_file_upload(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if request.htmx and request.FILES:
+        file = request.FILES.get('file')
+        if file:
+            message = ChatMessage.objects.create(
+                file=file,
+                author=request.user,
+                group=chat_group,
+            )
+            channel_layer = get_channel_layer()
+            # Render using chat_message.html to respect sender/receiver styling
+            message_html = render_to_string('a_rtchat/chat_message.html', {
+                'message': message,
+                'user': request.user,  # Sender's context for HTMX response
+                'chatgroup': chat_group,
+            })
+            event = {
+                'type': 'message_handler',
+                'message_id': message.id,
+                'message_html': message_html  # Include message_html for sender's HTMX response
+            }
+            async_to_sync(channel_layer.group_send)(
+                chatroom_name, event
+            )
+            return HttpResponse(status=200)
+    return HttpResponse(status=400)

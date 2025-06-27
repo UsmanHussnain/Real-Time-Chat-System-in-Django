@@ -27,7 +27,8 @@ class ChatGroup(models.Model):
 class ChatMessage(models.Model):
     group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE, related_name='chat_messages')
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    body = models.CharField(max_length=1024)
+    body = models.CharField(max_length=1024, blank=True, null=True)
+    file = models.FileField(upload_to='files/', blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

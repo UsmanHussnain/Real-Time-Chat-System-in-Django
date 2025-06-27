@@ -1,4 +1,5 @@
 from django.urls import path
+from django.conf.urls.static import static
 from .views import *
 
 urlpatterns = [
@@ -9,5 +10,6 @@ urlpatterns = [
     path('chat/edit/<chatroom_name>/', chatroom_edit_view, name='edit-chatroom'),
     path('chat/delete/<chatroom_name>/', chatroom_delete_view, name='chatroom-delete'),
     path('chat/leave/<chatroom_name>/', chatroom_leave_view, name='chatroom-leave'),
-    
+    path('chat/fileupload/<chatroom_name>/', chat_file_upload, name='chat-file-upload'),
 ]
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

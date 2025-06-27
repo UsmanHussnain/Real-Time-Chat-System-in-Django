@@ -1,7 +1,7 @@
 {% extends 'layouts/blank.html' %}
 
 {% block content %}
-<wrapper class="block max-w-2xl mx-auto my-10 px-6">
+<wrapper class="block max-w-6xl mx-auto my-10 px-6 sm:px-4 md:px-6 lg:px-8">
     {% if chat_group.groupchat_name %}
     <div class="flex justify-between">
         <h2>{{ chat_group.groupchat_name }}</h2>
@@ -53,19 +53,33 @@
             {% endif %}
         </div>
         <div id='chat_container' class="overflow-y-auto grow">
-            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4">
+            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4" hx-get="{% url 'filter_chat_messages' chat_group.group_name %}" hx-trigger="load" hx-target="#chat_messages" hx-swap="innerHTML">
                 {% for message in chat_messages reversed %}
                 {% include 'a_rtchat/chat_message.html' %}
                 {% endfor %}
             </ul>
         </div>
         <div class="sticky bottom-0 z-10 p-2 bg-gray-800">
-            <div class="flex items-center rounded-xl px-2 py-2">
+            <div class="flex flex-col gap-4 items-center rounded-xl px-2 py-2">
                 <div id="chat_form" class="w-full">
                     <form id="chat_message_form">
                         {% csrf_token %}
                         {{ form.as_p }}
                     </form>
+                    <form id="chat_file_form" enctype="multipart/form-data" class="flex items-center w-full"
+                    hx-post="{% url 'chat-file-upload' chat_group.group_name %}"
+                    hx-target="#chat_messages"
+                    hx-swap="beforeend"
+                    _="on htmx:afterRequest if event.detail.successful reset() me then call scrollToBottom()">
+                        {% csrf_token %}
+                        <input type="file" name="file" id="id_file" class="!bg-transparent text-gray-400">
+                        <button type="submit" class="whitespace-nowrap !text-sm !py-3 !px-4">Send File</button>
+                    </form>
+                </div>
+                <div class="flex gap-4">
+                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Files</button>
+                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Photos</button>
+                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Links</button>
                 </div>
             </div>
         </div>
@@ -77,6 +91,7 @@
     {% endif %}
 </wrapper>
 {% endblock %}
+
 {% block javascript %}
 <script>
     let chatSocket;
@@ -86,8 +101,66 @@
     let messageInput = document.querySelector('#chat_message_form input[name="body"]');
 
     function scrollToBottom() {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        console.log("Scrolled to bottom");
+        setTimeout(() => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            console.log("Scrolled to bottom");
+        }, 100);
+    }
+
+    function showFullscreenImage(url) {
+        let modal = document.querySelector('.fullscreen-image-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.className = 'fullscreen-image-modal';
+            modal.innerHTML = `
+                <img src="${url}" alt="Fullscreen Image" class="max-w-full max-h-full">
+                <button class="close-btn absolute top-4 right-4 text-white text-2xl font-bold">×</button>
+            `;
+            document.body.appendChild(modal);
+
+            // Add close button functionality
+            modal.querySelector('.close-btn').addEventListener('click', () => {
+                modal.classList.remove('show');
+                chatContainer.focus(); // Return focus to chat container
+            });
+        } else {
+            modal.querySelector('img').src = url;
+        }
+        modal.classList.add('show');
+        
+        // Close modal on click outside the image
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+                chatContainer.focus(); // Return focus to chat container
+            }
+        });
+    }
+
+    // Debug function to check image rendering
+    function debugImageRendering() {
+        const images = document.querySelectorAll('.image-preview');
+        images.forEach(img => {
+            console.log('Image onclick attribute:', img.getAttribute('onclick'));
+            if (img.getAttribute('onclick') && img.nextSibling && img.nextSibling.nodeType === Node.TEXT_NODE) {
+                console.error('Unexpected text node after image:', img.nextSibling.textContent);
+                img.nextSibling.remove(); // Remove any unexpected text
+            }
+        });
+    }
+
+    // Function to enhance links
+    function enhanceLinks() {
+        const messages = document.querySelectorAll('#chat_messages span');
+        messages.forEach(message => {
+            const links = message.getElementsByTagName('a');
+            Array.from(links).forEach(link => {
+                if (!link.getAttribute('target')) {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+        });
     }
 
     function connectWebSocket() {
@@ -106,18 +179,17 @@
             if (data.type === 'chat_message') {
                 chatMessages.insertAdjacentHTML('beforeend', data.message_html);
                 scrollToBottom();
+                debugImageRendering(); // Debug after each message
+                enhanceLinks(); // Enhance links after each message
             } else if (data.type === 'online_status') {
-                // Update online count for public chats
                 const onlineCountElement = document.getElementById('online-count');
                 if (onlineCountElement && data.html) {
                     onlineCountElement.outerHTML = data.html;
                 }
-                // Update online icon for public chats
                 const onlineIconElement = document.getElementById('online-icon');
                 if (onlineIconElement && !onlineIconElement.hasAttribute('data-user-id')) {
                     onlineIconElement.className = data.is_online ? 'green-dot absolute top-2 left-2' : 'gray-dot absolute top-2 left-2';
                 }
-                // Update group chat member dots
                 if (data.user_id && data.is_user_online !== undefined) {
                     const memberDot = document.querySelector(`[data-member-id="${data.user_id}"]`);
                     if (memberDot) {
@@ -125,7 +197,6 @@
                     }
                 }
             } else if (data.type === 'private_online_status') {
-                // Update online icon for private chats
                 if (data.user_id && data.is_online !== undefined) {
                     const privateIcon = document.querySelector(`[data-user-id="${data.user_id}"]`);
                     if (privateIcon) {
@@ -146,7 +217,6 @@
         };
     }
 
-    // Send message function
     function sendMessage(message) {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.send(JSON.stringify({
@@ -155,7 +225,6 @@
         }
     }
 
-    // Form submit handler
     messageForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -166,7 +235,6 @@
         }
     });
 
-    // Enter key handler
     messageInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -174,15 +242,57 @@
         }
     });
 
-    // Initialize
     connectWebSocket();
     scrollToBottom();
+    debugImageRendering(); // Initial debug
+    enhanceLinks(); // Initial link enhancement
 
-    // Ensure online status updates when window is closed
     window.addEventListener('beforeunload', function() {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.close();
         }
     });
 </script>
+
+{% block head %}
+<style>
+/* Fullscreen Image Modal */
+.fullscreen-image-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.fullscreen-image-modal img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+.fullscreen-image-modal.show {
+    display: flex;
+}
+.fullscreen-image-modal .close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+/* Style for links in messages */
+span a {
+    color: #1e40af; /* Blue color similar to default link color */
+    text-decoration: underline;
+}
+span a:hover {
+    color: #1e3a8a; /* Darker blue on hover */
+}
+</style>
+{% endblock %}
 {% endblock %}
