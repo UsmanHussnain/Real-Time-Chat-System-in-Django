@@ -53,7 +53,7 @@
             {% endif %}
         </div>
         <div id='chat_container' class="overflow-y-auto grow">
-            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4" hx-get="{% url 'filter_chat_messages' chat_group.group_name %}" hx-trigger="load" hx-target="#chat_messages" hx-swap="innerHTML">
+            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4">
                 {% for message in chat_messages reversed %}
                 {% include 'a_rtchat/chat_message.html' %}
                 {% endfor %}
@@ -75,11 +75,6 @@
                         <input type="file" name="file" id="id_file" class="!bg-transparent text-gray-400">
                         <button type="submit" class="whitespace-nowrap !text-sm !py-3 !px-4">Send File</button>
                     </form>
-                </div>
-                <div class="flex gap-4">
-                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Files</button>
-                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Photos</button>
-                    <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Links</button>
                 </div>
             </div>
         </div>
