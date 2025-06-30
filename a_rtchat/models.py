@@ -32,7 +32,8 @@ class ChatMessage(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.author.username}: {self.body[:100]}"
+        body_preview = self.body[:100] if self.body else "(No message content)"
+        return f"{self.author.username}: {body_preview}"
     
     class Meta:
         ordering = ['-created']
