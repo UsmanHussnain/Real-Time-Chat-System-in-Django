@@ -76,7 +76,9 @@
                         <ul class="hoverlist [&>li>a]:justify-end">
                             <li><a href="{% url 'profile' %}">My Profile</a></li>
                             <li><a href="{% url 'profile-edit' %}">Edit Profile</a></li>
-                            <li><a href="{% url 'new_groupchat' %}">Create Group Chat</a></li>
+                            {% if request.user.is_superuser %}
+                                <li><a href="{% url 'new_groupchat' %}">Create Group Chat</a></li>
+                            {% endif %}
                             <li><a href="{% url 'profile-settings' %}">Settings</a></li>
                             <li><a href="{% url 'account_logout' %}">Log Out</a></li>
                         </ul>

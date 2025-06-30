@@ -11,5 +11,6 @@ urlpatterns = [
     path('chat/delete/<chatroom_name>/', chatroom_delete_view, name='chatroom-delete'),
     path('chat/leave/<chatroom_name>/', chatroom_leave_view, name='chatroom-leave'),
     path('chat/fileupload/<chatroom_name>/', chat_file_upload, name='chat-file-upload'),
+    path('chat/room/<chatroom_name>/filter/', filter_chat_messages, name='filter_chat_messages'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

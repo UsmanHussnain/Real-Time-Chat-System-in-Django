@@ -8,30 +8,30 @@
     {% endautoescape %}</span>
 {% elif message.file %}
     <div class="file-preview-container">
-        {% if message.file.url|slice:"-4:" in ".jpg .jpeg .png .gif" %}
-            <!-- Image Preview (Click to Zoom) -->
+        {% if message.file.name|slice:"-4:" in ".jpg .jpeg .png .gif" %}
             <div class="image-preview-wrapper">
                 <img 
                     src="{{ message.file.url }}" 
                     class="image-preview cursor-zoom-in rounded-lg border border-gray-300 hover:shadow-lg transition-shadow w-48 h-auto"
-                    onclick="showFullscreenImage('{{ message.file.url|escapejs }}')"  <!-- Escaped for safety -->
+                    onclick="showFullscreenImage('{{ message.file.url|escapejs }}')"
                     alt="Image Attachment"
                 >
+                <div class="file-size text-xs text-gray-500 mt-1">
+                    {{ message.file.size|filesizeformat }}
+                </div>
             </div>
         {% else %}
-            <!-- Non-Image File Preview (PDF/DOC/XLS) -->
             <div class="non-image-preview flex gap-4 items-center p-3 bg-gray-100 rounded-lg">
-                <!-- File Icon -->
                 <div class="file-icon">
-                    {% if message.file.url|slice:"-4:" == ".pdf" %}
+                    {% if message.file.name|slice:"-4:" == ".pdf" %}
                         <div class="w-16 h-16 bg-red-100 flex items-center justify-center rounded-lg border border-red-300">
                             <span class="text-red-600 font-bold">PDF</span>
                         </div>
-                    {% elif message.file.url|slice:"-4:" in ".doc .docx" %}
+                    {% elif message.file.name|slice:"-4:" in ".doc .docx" %}
                         <div class="w-16 h-16 bg-blue-100 flex items-center justify-center rounded-lg border border-blue-300">
                             <span class="text-blue-600 font-bold">DOC</span>
                         </div>
-                    {% elif message.file.url|slice:"-4:" in ".xls .xlsx" %}
+                    {% elif message.file.name|slice:"-4:" in ".xls .xlsx" %}
                         <div class="w-16 h-16 bg-green-100 flex items-center justify-center rounded-lg border border-green-300">
                             <span class="text-green-600 font-bold">XLS</span>
                         </div>
@@ -41,8 +41,6 @@
                         </div>
                     {% endif %}
                 </div>
-
-                <!-- File Actions (Open/Download) -->
                 <div class="file-actions flex flex-col gap-2">
                     <a 
                         href="{{ message.file.url }}" 
@@ -59,6 +57,9 @@
                         Download
                     </a>
                     <span class="text-xs text-gray-500 mt-1">{{ message.file.name|truncatechars:20 }}</span>
+                    <div class="file-size text-xs text-gray-500">
+                        {{ message.file.size|filesizeformat }}
+                    </div>
                 </div>
             </div>
         {% endif %}

@@ -9,6 +9,7 @@ from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.template.loader import render_to_string
+from django.db.models import Q
 
 
 @login_required
@@ -116,6 +117,10 @@ def get_or_create_chatroom(request, username):
 
 @login_required
 def create_groupchat(request):
+    if not request.user.is_superuser:
+        messages.error(request, "Only superusers can create group chats.")
+        return redirect('home')
+    
     form = newGroupForm(request.POST or None)
     if request.method == 'POST':
         if form.is_valid():
@@ -133,7 +138,11 @@ def create_groupchat(request):
 @login_required
 def chatroom_edit_view(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if not request.user.is_superuser:
+        messages.error(request, "Only superusers can edit group chats.")
+        raise Http404()
     if request.user != chat_group.admin:
+        messages.error(request, "Only the admin can edit this group chat.")
         raise Http404()
 
     form = ChatRoomEditForm(instance=chat_group)
@@ -158,7 +167,11 @@ def chatroom_edit_view(request, chatroom_name):
 @login_required
 def chatroom_delete_view(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    if not request.user.is_superuser:
+        messages.error(request, "Only superusers can delete group chats.")
+        raise Http404()
     if request.user != chat_group.admin:
+        messages.error(request, "Only the admin can delete this group chat.")
         raise Http404()
 
     if request.method == 'POST':
@@ -238,3 +251,44 @@ def chat_file_upload(request, chatroom_name):
             )
             return HttpResponse(status=200)
     return HttpResponse(status=400)
+
+@login_required
+def filter_chat_messages(request, chatroom_name):
+    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+    filter_type = request.GET.get('filter', 'all')
+    chat_messages = chat_group.chat_messages.all()
+
+    if filter_type == 'files':
+        chat_messages = chat_messages.filter(
+            file__isnull=False
+        ).filter(
+            Q(body__isnull=True) | Q(body__exact='')
+        ).exclude(
+            file__icontains='.jpg'
+        ).exclude(
+            file__icontains='.jpeg'
+        ).exclude(
+            file__icontains='.png'
+        ).exclude(
+            file__icontains='.gif'
+        )
+    elif filter_type == 'photos':
+        chat_messages = chat_messages.filter(
+            Q(file__icontains='.jpg') |
+            Q(file__icontains='.jpeg') |
+            Q(file__icontains='.png') |
+            Q(file__icontains='.gif')
+        )
+    elif filter_type == 'links':
+        chat_messages = chat_messages.filter(body__regex=r'(https?://|www\.)[^\s]+')
+    elif filter_type == 'all':
+        pass  # No filtering, show all messages
+
+    chat_messages = chat_messages[:30]
+
+    context = {
+        'chat_messages': chat_messages,
+        'user': request.user,
+        'chatgroup': chat_group,
+    }
+    return render(request, 'a_rtchat/partials/chat_messages_filtered.html', context)
