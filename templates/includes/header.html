@@ -1,96 +1,120 @@
 {% load static %}
-<header class="flex items-center justify-between bg-gray-800 h-20 px-8 text-white sticky top-0 z-40">
+<header class="flex items-center justify-between bg-gray-800 h-16 px-6 text-white sticky top-0 z-40">
     <div class="flex item-center">
         <a class="flex items-center gap-2" href="/">
-            <img class="h-6" src="{% static 'images/logo.svg' %}" alt="Logo"/>
-            <span class="text-lg font-bold">Real-Time Chat</span>
+            <img class="h-5" src="{% static 'images/logo.svg' %}" alt="Logo"/>
+            <span class="text-base font-bold">Real-Time Chat</span>
         </a>
         <div class="online-user-count">
             {% if request.user.is_authenticated %}
-                <span id="online-count-display" class="bg-red-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4">
+                <span id="online-count-display" class="bg-red-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3">
                     Loading...
                 </span>
             {% endif %}
         </div>
     </div>
     <nav class="block relative">
-        <ul class="navitems flex items-center justify-center h-full gap-6">
+        <ul class="navitems flex items-center justify-center h-full gap-4">
             {% if request.user.is_authenticated %}
-                <li x-data="{ dropdownOpen: false }" class="relative">
-                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none flex items-center gap-1 px-3 py-2 hover:bg-gray-700 rounded-lg transition">
+                <!-- Mobile Chat Toggle Button (shown only on small screens) -->
+                <li class="lg:hidden">
+                    <a href="#" id="mobile-chat-toggle" class="cursor-pointer select-none flex items-center gap-1 px-2 py-1 hover:bg-gray-700 rounded-md transition text-sm">
                         <div id="online-in-chat"></div>
                         Chats
-                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4 transition-transform" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
                     </a>
-                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow-lg rounded-lg w-56 p-2 z-20 mt-1 border border-gray-200"
-                    x-transition:enter="duration-300 ease-out"
-                    x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
-                    x-transition:enter-end="opacity-100 translate-y-0 scale-100">
-                        <ul id="chats-list" class="hoverlist [&>li>a]:justify-end">
-                            <li class="relative hover:bg-gray-100 rounded">
-                                <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
-                                    <img class="h-6 w-6 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
-                                    <span class="flex-1">Public Group Chat</span>
-                                    <div id="public-chat-status" class="z-20"></div>
-                                </a>
-                            </li>
-                            {% for chatroom in request.user.chat_groups.all %}
-                                {% if chatroom.groupchat_name %}
-                                    <li class="relative hover:bg-gray-100 rounded">
-                                        <a class="leading-5 flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
-                                            <img class="h-6 w-6 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
-                                            <span class="flex-1">{{ chatroom.groupchat_name | slice:":30" }}</span>
-                                            <div class="chat-status-{{ chatroom.group_name }} z-20"></div>
-                                        </a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            {% for chatroom in request.user.chat_groups.all %}
-                                {% if chatroom.is_private %}
-                                    {% for member in chatroom.members.all %}
-                                        {% if member != request.user %}
-                                            <li class="relative hover:bg-gray-100 rounded">
-                                                <a href="{% url 'chatroom' chatroom.group_name %}" class="flex items-center gap-2 p-2">
-                                                    <img class="h-6 w-6 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
-                                                    <span class="flex-1">{{ member.profile.name }}</span>
-                                                    <div class="user-status-{{ member.id }} z-20"></div>
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                            {% endfor %}
-                        </ul>
-                    </div>
                 </li>
+                
                 <li x-data="{ dropdownOpen: false }" class="relative">
-                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none flex items-center gap-2 px-3 py-2 hover:bg-gray-700 rounded-lg transition">
-                        <img class="h-8 w-8 rounded-full object-cover" src="{{ request.user.profile.avatar }}" alt="Avatar" />
+                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none flex items-center gap-1 px-2 py-1 hover:bg-gray-700 rounded-md transition text-sm">
+                        <img class="h-7 w-7 rounded-full object-cover" src="{{ request.user.profile.avatar }}" alt="Avatar" />
                         <span>{{ request.user.profile.name }}</span>
-                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4 transition-transform" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
+                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-3 transition-transform" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
                     </a>
-                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow-lg rounded-lg w-48 p-2 z-20 mt-1 border border-gray-200"
+                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow-lg rounded-md w-40 p-1 z-20 mt-1 border border-gray-200"
                     x-transition:enter="duration-300 ease-out"
                     x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
                     x-transition:enter-end="opacity-100 translate-y-0 scale-100">
-                        <ul class="hoverlist [&>li>a]:justify-start">
-                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile' %}" class="block p-2">My Profile</a></li>
-                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-edit' %}" class="block p-2">Edit Profile</a></li>
+                        <ul class="hoverlist [&>li>a]:justify-start text-sm">
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile' %}" class="block p-1">My Profile</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-edit' %}" class="block p-1">Edit Profile</a></li>
                             {% if request.user.is_superuser %}
-                                <li class="hover:bg-gray-100 rounded"><a href="{% url 'new_groupchat' %}" class="block p-2">Create Group Chat</a></li>
+                                <li class="hover:bg-gray-100 rounded"><a href="{% url 'new_groupchat' %}" class="block p-1">Create Group Chat</a></li>
                             {% endif %}
-                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-settings' %}" class="block p-2">Settings</a></li>
-                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'account_logout' %}" class="block p-2 text-red-500">Log Out</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-settings' %}" class="block p-1">Settings</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'account_logout' %}" class="block p-1 text-red-500">Log Out</a></li>
                         </ul>
                     </div>
                 </li>
             {% else %}
-            <li><a href="{% url 'account_login' %}" class="px-3 py-2 hover:bg-gray-700 rounded-lg transition">Login</a></li>
-            <li><a href="{% url 'account_signup' %}?next={% url 'profile-onboarding' %}" class="px-3 py-2 hover:bg-gray-700 rounded-lg transition">Signup</a></li>
+            <li><a href="{% url 'account_login' %}" class="px-2 py-1 hover:bg-gray-700 rounded-md transition text-sm">Login</a></li>
+            <li><a href="{% url 'account_signup' %}?next={% url 'profile-onboarding' %}" class="px-2 py-1 hover:bg-gray-700 rounded-md transition text-sm">Signup</a></li>
             {% endif %}
         </ul>
     </nav>
 </header>
+
+<!-- Mobile Chat Sidebar (hidden by default) -->
+<div id="mobile-chat-sidebar" class="fixed inset-0 z-30 bg-gray-800 text-white transform -translate-x-full transition-transform duration-300 ease-in-out lg:hidden">
+    <div class="flex justify-between items-center p-3 border-b border-gray-700">
+        <h2 class="text-lg font-bold">Your Chats</h2>
+        <button id="mobile-chat-close" class="text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+    <div class="overflow-y-auto h-full">
+        <ul class="divide-y divide-gray-700">
+            <!-- Public Chat -->
+            <li class="relative hover:bg-gray-700">
+                <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
+                    <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-white truncate">Public Group Chat</p>
+                        <p class="text-xs text-gray-400 truncate">Group chat with everyone</p>
+                    </div>
+                    <div id="public-chat-status" class="z-20"></div>
+                </a>
+            </li>
+            
+            <!-- Group Chats -->
+            {% for chatroom in request.user.chat_groups.all %}
+                {% if chatroom.groupchat_name %}
+                    <li class="relative hover:bg-gray-700">
+                        <a class="flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
+                            <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }}</p>
+                                <p class="text-xs text-gray-400 truncate">{{ chatroom.members.count }} members</p>
+                            </div>
+                            <div class="chat-status-{{ chatroom.group_name }} z-20"></div>
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- Private Chats -->
+            {% for chatroom in request.user.chat_groups.all %}
+                {% if chatroom.is_private %}
+                    {% for member in chatroom.members.all %}
+                        {% if member != request.user %}
+                            <li class="relative hover:bg-gray-700">
+                                <a href="{% url 'chatroom' chatroom.group_name %}" class="flex items-center gap-2 p-2">
+                                    <img class="h-8 w-8 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-medium text-white truncate">{{ member.profile.name }}</p>
+                                        <p class="text-xs text-gray-400 truncate">@{{ member.username }}</p>
+                                    </div>
+                                    <div class="user-status-{{ member.id }} z-20"></div>
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+</div>
 
 <script>
     // Global variable to store unread counts
@@ -107,6 +131,23 @@
         
         // Load unread counts from server on page load
         loadUnreadCounts();
+
+        // Mobile chat sidebar toggle
+        const mobileChatToggle = document.getElementById('mobile-chat-toggle');
+        const mobileChatSidebar = document.getElementById('mobile-chat-sidebar');
+        const mobileChatClose = document.getElementById('mobile-chat-close');
+        
+        if (mobileChatToggle && mobileChatSidebar && mobileChatClose) {
+            mobileChatToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                mobileChatSidebar.classList.remove('-translate-x-full');
+            });
+            
+            mobileChatClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                mobileChatSidebar.classList.add('-translate-x-full');
+            });
+        }
 
         onlineStatusSocket.onopen = function(e) {
             console.log('Online Status WebSocket connected');
@@ -181,7 +222,7 @@
 
         // When clicking on a chat link, clear only that chat's notification
         document.addEventListener('click', function(e) {
-            const chatLink = e.target.closest('#chats-list a');
+            const chatLink = e.target.closest('#chats-list a, #mobile-chat-sidebar a');
             if (chatLink) {
                 const chatUrl = chatLink.getAttribute('href');
                 const chatroomName = chatUrl.split('/').pop();
@@ -207,6 +248,11 @@
                         'type': 'mark_chat_read',
                         'chatroom_name': chatroomName
                     }));
+                }
+                
+                // Close mobile sidebar if open
+                if (mobileChatSidebar && !mobileChatSidebar.classList.contains('-translate-x-full')) {
+                    mobileChatSidebar.classList.add('-translate-x-full');
                 }
             }
         });
@@ -234,7 +280,7 @@
                 if (unreadCount > 0) {
                     if (!dot) {
                         dot = document.createElement('div');
-                        dot.className = 'notification-dot absolute top-2 right-2 z-20 w-2 h-2 bg-red-500 rounded-full';
+                        dot.className = 'notification-dot absolute top-1 right-1 z-20 w-1.5 h-1.5 bg-red-500 rounded-full';
                         chatLink.appendChild(dot);
                     }
                     
@@ -297,13 +343,13 @@
             if (display) {
                 if (isError) {
                     display.textContent = 'Offline';
-                    display.className = 'bg-gray-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                    display.className = 'bg-gray-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
                 } else if (count > 0) {
                     display.textContent = `${count} online`;
-                    display.className = 'bg-green-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                    display.className = 'bg-green-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
                 } else {
                     display.textContent = '0 online';
-                    display.className = 'bg-gray-500 rounded-lg pt-1 pb-2 px-2 text-white text-sm ml-4';
+                    display.className = 'bg-gray-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
                 }
             }
         }
@@ -321,39 +367,51 @@
 
 <style>
     .green-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         background-color: #10B981;
         border-radius: 50%;
         display: inline-block;
     }
     .gray-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         background-color: #9CA3AF;
         border-radius: 50%;
         display: inline-block;
     }
     .red-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         background-color: #EF4444;
         border-radius: 50%;
         display: inline-block;
     }
     .graylight-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         background-color: #D1D5DB;
         border-radius: 50%;
         display: inline-block;
     }
     .unread-count {
-        font-size: 0.6rem;
+        font-size: 0.5rem;
         line-height: 1;
-        padding: 0.15rem 0.3rem;
+        padding: 0.1rem 0.2rem;
     }
     .hoverlist li a {
         transition: background-color 0.2s ease;
+    }
+    
+    /* Mobile sidebar overlay */
+    #mobile-chat-sidebar {
+        z-index: 50;
+    }
+    
+    /* Responsive styles */
+    @media (min-width: 1024px) {
+        #mobile-chat-sidebar {
+            display: none !important;
+        }
     }
 </style>
