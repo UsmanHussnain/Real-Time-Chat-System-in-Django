@@ -3,31 +3,28 @@
 {% block content %}
 <wrapper class="block max-w-6xl mx-auto my-10 px-6 sm:px-4 md:px-6 lg:px-8">
     {% if chat_group.groupchat_name %}
-    <div class="flex justify-between items-center">
-        <h2>{{ chat_group.groupchat_name }}</h2>
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">{{ chat_group.groupchat_name }}</h2>
         {% if user == chat_group.admin %}
-        <a href="{% url 'edit-chatroom' chat_group.group_name %}">
-            <div class="p-2 bg-gray-200 hover:bg-blue-600 rounded-lg group">
-                <svg class="fill-gray-500 group-hover:fill-white" width="16" height="16">
-                    <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path>
-                </svg>
-            </div>
+        <a href="{% url 'edit-chatroom' chat_group.group_name %}" class="flex items-center gap-1 text-gray-600 hover:text-blue-600">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path>
+            </svg>
+            <span>Edit</span>
         </a>
         {% endif %}
     </div>
     {% endif %}
     <div id="chat_window" class="h-[45rem] flex flex-col bg-gray-800 rounded-2xl shadow-2xl relative p-1">
-        <div class="flex justify-between text-emerald-400 bg-gray-800 p-2 sticky top-0 z-10">
-            <div>
+        <div class="flex justify-between items-center text-emerald-400 bg-gray-800 p-3 sticky top-0 z-10 rounded-t-xl">
+            <div class="flex items-center">
                 {% if other_users %}
-                <div id="online-icon" class="gray-dot absolute top-2 left-2" data-user-id="{{ other_users.id }}"></div>
-                <a href="{% url 'profile' other_users.username %}">
-                    <div class="flex items-center gap-2 p-4 sticky top-0 z-10">
-                        <img class="w-10 h-10 rounded-full object-cover" src="{{ other_users.profile.avatar }}" alt="{{ other_users.username }}'s avatar">
-                        <div>
-                            <span class="font-bold text-white">{{ other_users.profile.name }}</span>
-                            <span class="text-sm font-light text-gray-400">@{{ other_users.username }}</span>
-                        </div>
+                <div id="online-icon" class="gray-dot absolute top-4 left-4" data-user-id="{{ other_users.id }}"></div>
+                <a href="{% url 'profile' other_users.username %}" class="flex items-center gap-2">
+                    <img class="w-10 h-10 rounded-full object-cover" src="{{ other_users.profile.avatar }}" alt="{{ other_users.username }}'s avatar">
+                    <div>
+                        <span class="font-bold text-white">{{ other_users.profile.name }}</span>
+                        <span class="text-sm font-light text-gray-400">@{{ other_users.username }}</span>
                     </div>
                 </a>
                 {% elif chat_group.groupchat_name %}
@@ -47,21 +44,21 @@
                                 {% endif %}
                                 <img src="{{ member.profile.avatar }}" alt="{{ member.username }}'s avatar" class="w-14 h-14 rounded-full object-cover">
                             </div>
-                            <span>{{ member.profile.name }}</span>
+                            <span class="text-xs text-center">{{ member.profile.name }}</span>
                         </a>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <div id="online-icon" class="gray-dot absolute top-2 left-2"></div>
+                <div id="online-icon" class="gray-dot absolute top-4 left-4"></div>
                 <span id="online-count" class="pr-1"></span>online
                 {% endif %}
             </div>
             <div class="flex gap-2">
-                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=all" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">Chat</button>
-                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">Files</button>
-                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">Photos</button>
-                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">Links</button>
+                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=all" hx-target="#chat_messages" hx-swap="innerHTML" class="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition">Chat</button>
+                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition">Files</button>
+                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm transition">Photos</button>
+                <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm transition">Links</button>
             </div>
         </div>
         <div id='chat_container' class="overflow-y-auto grow">
@@ -71,14 +68,17 @@
                 {% endfor %}
             </ul>
         </div>
-        <div class="sticky bottom-0 z-10 p-2 bg-gray-800">
+        <div class="sticky bottom-0 z-10 p-3 bg-gray-800 rounded-b-xl">
             <div class="flex flex-col gap-4 items-center rounded-xl px-2 py-2">
                 <div id="chat_form" class="w-full">
-                    <form id="chat_message_form">
+                    <form id="chat_message_form" class="flex gap-2">
                         {% csrf_token %}
-                        {{ form.as_p }}
+                        <input type="text" name="body" placeholder="Type your message..." class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                            Send
+                        </button>
                     </form>
-                    <form id="chat_file_form" enctype="multipart/form-data" class="flex items-center w-full"
+                    <form id="chat_file_form" enctype="multipart/form-data" class="flex items-center gap-2 w-full mt-2"
                         hx-post="{% url 'chat-file-upload' chat_group.group_name %}"
                         hx-target="#chat_messages"
                         hx-swap="beforeend"
@@ -86,10 +86,15 @@
                         on htmx:afterRequest remove .uploading from me
                         if event.detail.successful reset() me then call scrollToBottom()">
                         {% csrf_token %}
-                        <input type="file" name="file" id="id_file" class="!bg-transparent text-gray-400">
-                        <button type="submit" class="whitespace-nowrap !text-sm !py-3 !px-4 relative">
+                        <input type="file" name="file" id="id_file" class="flex-1 bg-gray-700 text-gray-400 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition relative">
                             <span class="upload-text">Send File</span>
-                            <span class="upload-loader absolute"></span>
+                            <span class="upload-loader absolute inset-0 flex items-center justify-center hidden">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
                         </button>
                     </form>
                 </div>
@@ -111,6 +116,7 @@
     let chatContainer = document.getElementById('chat_container');
     let messageForm = document.getElementById('chat_message_form');
     let messageInput = document.querySelector('#chat_message_form input[name="body"]');
+    let fileForm = document.getElementById('chat_file_form');
 
     function scrollToBottom() {
         setTimeout(() => {
@@ -196,8 +202,43 @@
             const privateIcon = document.querySelector(`[data-user-id="${data.user_id}"]`);
             if (privateIcon) {
                 privateIcon.className = data.is_online ? 
-                    'green-dot absolute top-2 left-2' : 
-                    'gray-dot absolute top-2 left-2';
+                    'green-dot absolute top-4 left-4' : 
+                    'gray-dot absolute top-4 left-4';
+            }
+        }
+    }
+
+    function handleUnreadMessage(data) {
+        if (data.type === 'unread_message') {
+            // Find the chat element in the dropdown
+            const chatElement = document.querySelector(`a[href*="${data.chatroom_name}"]`);
+            if (chatElement) {
+                // Find or create the notification dot
+                let dot = chatElement.querySelector('.notification-dot');
+                let countBadge = chatElement.querySelector('.unread-count');
+                const unreadCount = data.unread_count || 1;
+                
+                if (unreadCount > 0) {
+                    if (!dot) {
+                        dot = document.createElement('div');
+                        dot.className = 'notification-dot absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full';
+                        chatElement.appendChild(dot);
+                    }
+                    
+                    if (unreadCount > 1) {
+                        if (!countBadge) {
+                            countBadge = document.createElement('span');
+                            countBadge.className = 'unread-count bg-red-500 text-white text-xs rounded-full px-1 ml-1';
+                            chatElement.appendChild(countBadge);
+                        }
+                        countBadge.textContent = unreadCount;
+                    } else if (countBadge) {
+                        countBadge.remove();
+                    }
+                } else {
+                    if (dot) dot.remove();
+                    if (countBadge) countBadge.remove();
+                }
             }
         }
     }
@@ -210,18 +251,34 @@
 
         chatSocket.onopen = function(e) {
             console.log('WebSocket connected');
+            
+            // Mark all messages in THIS chat as read when connected
+            chatSocket.send(JSON.stringify({
+                'type': 'mark_chat_read',
+                'chatroom_name': '{{ chatroom_name }}'
+            }));
         };
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
             
-            if (data.type === 'chat_message') {
+            if (data.type === 'chat_message' || data.type === 'file_message') {
                 chatMessages.insertAdjacentHTML('beforeend', data.message_html);
                 scrollToBottom();
                 debugImageRendering();
                 enhanceLinks();
+                
+                // If this is our own message, mark it as read immediately
+                if (data.author_id === {{ request.user.id }}) {
+                    chatSocket.send(JSON.stringify({
+                        'type': 'mark_message_read',
+                        'message_id': data.message_id
+                    }));
+                }
             } else if (data.type === 'online_status' || data.type === 'private_online_status') {
                 updateOnlineStatus(data);
+            } else if (data.type === 'unread_message') {
+                handleUnreadMessage(data);
             }
         };
 
@@ -252,11 +309,18 @@
         }
     });
 
-    messageInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            messageForm.dispatchEvent(new Event('submit'));
-        }
+    fileForm.addEventListener('htmx:beforeRequest', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.upload-text').classList.add('hidden');
+        submitBtn.querySelector('.upload-loader').classList.remove('hidden');
+    });
+
+    fileForm.addEventListener('htmx:afterRequest', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.querySelector('.upload-text').classList.remove('hidden');
+        submitBtn.querySelector('.upload-loader').classList.add('hidden');
     });
 
     // Initialize
@@ -270,16 +334,8 @@
             chatSocket.close();
         }
     });
-    document.getElementById('chat_file_form').addEventListener('htmx:beforeRequest', function() {
-    this.querySelector('button[type="submit"]').disabled = true;
-    });
-
-    document.getElementById('chat_file_form').addEventListener('htmx:afterRequest', function() {
-        this.querySelector('button[type="submit"]').disabled = false;
-    });
 </script>
 
-{% block head %}
 <style>
 .fullscreen-image-modal {
     display: none;
@@ -331,24 +387,44 @@ span a:hover {
     border-radius: 50%;
     display: inline-block;
 }
-.upload-loader {
-        display: none;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(255,255,255,.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-    .uploading .upload-loader {
-        display: inline-block;
-    }
-    .uploading .upload-text {
-        display: none;
-    }
+.red-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #EF4444;
+    border-radius: 50%;
+    display: inline-block;
+}
+.notification-dot {
+    width: 8px;
+    height: 8px;
+}
+
+#chat_container {
+    scrollbar-width: thin;
+    scrollbar-color: #4B5563 #1F2937;
+}
+#chat_container::-webkit-scrollbar {
+    width: 8px;
+}
+#chat_container::-webkit-scrollbar-track {
+    background: #1F2937;
+}
+#chat_container::-webkit-scrollbar-thumb {
+    background-color: #4B5563;
+    border-radius: 4px;
+}
+
+#chat_message_form input {
+    transition: all 0.2s ease;
+}
+#chat_message_form button {
+    transition: all 0.2s ease;
+}
+#chat_file_form input {
+    transition: all 0.2s ease;
+}
+#chat_file_form button {
+    transition: all 0.2s ease;
+}
 </style>
-{% endblock %}
 {% endblock %}

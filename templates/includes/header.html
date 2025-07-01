@@ -14,33 +14,33 @@
         </div>
     </div>
     <nav class="block relative">
-        <ul class="navitems flex items-center justify-center h-full">
+        <ul class="navitems flex items-center justify-center h-full gap-6">
             {% if request.user.is_authenticated %}
                 <li x-data="{ dropdownOpen: false }" class="relative">
-                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none">
+                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none flex items-center gap-1 px-3 py-2 hover:bg-gray-700 rounded-lg transition">
                         <div id="online-in-chat"></div>
                         Chats
-                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
+                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4 transition-transform" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
                     </a>
-                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow rounded-lg w-40 p-2 z-20"
+                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow-lg rounded-lg w-56 p-2 z-20 mt-1 border border-gray-200"
                     x-transition:enter="duration-300 ease-out"
                     x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
                     x-transition:enter-end="opacity-100 translate-y-0 scale-100">
                         <ul id="chats-list" class="hoverlist [&>li>a]:justify-end">
-                            <li class="relative">
-                                <a href="{% url 'home' %}">
-                                    <img class="h-6 w-6 m-1 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
-                                    Public Group Chat
-                                    <div id="public-chat-status" class="absolute top-2 right-2 z-20"></div>
+                            <li class="relative hover:bg-gray-100 rounded">
+                                <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
+                                    <img class="h-6 w-6 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                                    <span class="flex-1">Public Group Chat</span>
+                                    <div id="public-chat-status" class="z-20"></div>
                                 </a>
                             </li>
                             {% for chatroom in request.user.chat_groups.all %}
                                 {% if chatroom.groupchat_name %}
-                                    <li class="relative">
-                                        <a class="leading-5" href="{% url 'chatroom' chatroom.group_name %}">
-                                            <img class="h-6 w-6 m-1 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
-                                            {{ chatroom.groupchat_name | slice:":30" }}
-                                            <div class="chat-status-{{ chatroom.group_name }} absolute top-2 right-2 z-20"></div>
+                                    <li class="relative hover:bg-gray-100 rounded">
+                                        <a class="leading-5 flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
+                                            <img class="h-6 w-6 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                                            <span class="flex-1">{{ chatroom.groupchat_name | slice:":30" }}</span>
+                                            <div class="chat-status-{{ chatroom.group_name }} z-20"></div>
                                         </a>
                                     </li>
                                 {% endif %}
@@ -49,11 +49,11 @@
                                 {% if chatroom.is_private %}
                                     {% for member in chatroom.members.all %}
                                         {% if member != request.user %}
-                                            <li class="relative">
-                                                <a href="{% url 'chatroom' chatroom.group_name %}">
-                                                    <img class="h-6 w-6 m-1 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
-                                                    {{ member.profile.name }}
-                                                    <div class="user-status-{{ member.id }} absolute top-2 right-2 z-20"></div>
+                                            <li class="relative hover:bg-gray-100 rounded">
+                                                <a href="{% url 'chatroom' chatroom.group_name %}" class="flex items-center gap-2 p-2">
+                                                    <img class="h-6 w-6 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
+                                                    <span class="flex-1">{{ member.profile.name }}</span>
+                                                    <div class="user-status-{{ member.id }} z-20"></div>
                                                 </a>
                                             </li>
                                         {% endif %}
@@ -64,35 +64,38 @@
                     </div>
                 </li>
                 <li x-data="{ dropdownOpen: false }" class="relative">
-                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none">
+                    <a @click="dropdownOpen = !dropdownOpen" @click.away="dropdownOpen = false" class="cursor-pointer select-none flex items-center gap-2 px-3 py-2 hover:bg-gray-700 rounded-lg transition">
                         <img class="h-8 w-8 rounded-full object-cover" src="{{ request.user.profile.avatar }}" alt="Avatar" />
-                        {{ request.user.profile.name }}
-                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
+                        <span>{{ request.user.profile.name }}</span>
+                        <img x-bind:class="dropdownOpen && 'rotate-180 duration-300'" class="w-4 transition-transform" src="https://img.icons8.com/small/32/ffffff/expand-arrow.png" alt="Dropdown" />
                     </a>
-                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow rounded-lg w-40 p-2 z-20"
+                    <div x-show="dropdownOpen" x-cloak class="absolute right-0 bg-white text-black shadow-lg rounded-lg w-48 p-2 z-20 mt-1 border border-gray-200"
                     x-transition:enter="duration-300 ease-out"
                     x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
                     x-transition:enter-end="opacity-100 translate-y-0 scale-100">
-                        <ul class="hoverlist [&>li>a]:justify-end">
-                            <li><a href="{% url 'profile' %}">My Profile</a></li>
-                            <li><a href="{% url 'profile-edit' %}">Edit Profile</a></li>
+                        <ul class="hoverlist [&>li>a]:justify-start">
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile' %}" class="block p-2">My Profile</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-edit' %}" class="block p-2">Edit Profile</a></li>
                             {% if request.user.is_superuser %}
-                                <li><a href="{% url 'new_groupchat' %}">Create Group Chat</a></li>
+                                <li class="hover:bg-gray-100 rounded"><a href="{% url 'new_groupchat' %}" class="block p-2">Create Group Chat</a></li>
                             {% endif %}
-                            <li><a href="{% url 'profile-settings' %}">Settings</a></li>
-                            <li><a href="{% url 'account_logout' %}">Log Out</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-settings' %}" class="block p-2">Settings</a></li>
+                            <li class="hover:bg-gray-100 rounded"><a href="{% url 'account_logout' %}" class="block p-2 text-red-500">Log Out</a></li>
                         </ul>
                     </div>
                 </li>
             {% else %}
-            <li><a href="{% url 'account_login' %}">Login</a></li>
-            <li><a href="{% url 'account_signup' %}?next={% url 'profile-onboarding' %}">Signup</a></li>
+            <li><a href="{% url 'account_login' %}" class="px-3 py-2 hover:bg-gray-700 rounded-lg transition">Login</a></li>
+            <li><a href="{% url 'account_signup' %}?next={% url 'profile-onboarding' %}" class="px-3 py-2 hover:bg-gray-700 rounded-lg transition">Signup</a></li>
             {% endif %}
         </ul>
     </nav>
 </header>
 
 <script>
+    // Global variable to store unread counts
+    let unreadCounts = {};
+    
     document.addEventListener('DOMContentLoaded', () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/online_status/`;
@@ -101,9 +104,16 @@
         // Initial state
         updateOnlineCount(0);
         updateOnlineInChat(false);
+        
+        // Load unread counts from server on page load
+        loadUnreadCounts();
 
         onlineStatusSocket.onopen = function(e) {
             console.log('Online Status WebSocket connected');
+            // Request initial unread counts
+            onlineStatusSocket.send(JSON.stringify({
+                'type': 'get_unread_counts'
+            }));
         };
 
         onlineStatusSocket.onmessage = function(e) {
@@ -138,8 +148,68 @@
                         });
                     });
                 }
+                
+                // Restore red dots after status update
+                restoreUnreadIndicators();
+                
+            } else if (data.type === 'unread_message') {
+                // Handle unread message notification
+                const chatroomName = data.chatroom_name;
+                const unreadCount = data.unread_count || 1;
+                
+                // Store unread count
+                unreadCounts[chatroomName] = unreadCount;
+                saveUnreadCounts();
+                
+                updateChatNotification(chatroomName, unreadCount);
+                
+            } else if (data.type === 'unread_counts') {
+                // Handle initial unread counts from server
+                if (data.counts) {
+                    unreadCounts = data.counts;
+                    saveUnreadCounts();
+                    
+                    // Update all chat notifications
+                    Object.keys(unreadCounts).forEach(chatroomName => {
+                        if (unreadCounts[chatroomName] > 0) {
+                            updateChatNotification(chatroomName, unreadCounts[chatroomName]);
+                        }
+                    });
+                }
             }
         };
+
+        // When clicking on a chat link, clear only that chat's notification
+        document.addEventListener('click', function(e) {
+            const chatLink = e.target.closest('#chats-list a');
+            if (chatLink) {
+                const chatUrl = chatLink.getAttribute('href');
+                const chatroomName = chatUrl.split('/').pop();
+                
+                // Only remove notification for this specific chat
+                const dots = chatLink.querySelectorAll('.notification-dot');
+                dots.forEach(dot => {
+                    dot.remove();
+                });
+                
+                const countBadges = chatLink.querySelectorAll('.unread-count');
+                countBadges.forEach(badge => {
+                    badge.remove();
+                });
+                
+                // Clear from unread counts
+                delete unreadCounts[chatroomName];
+                saveUnreadCounts();
+                
+                // Send message to mark this chat's messages as read
+                if (onlineStatusSocket.readyState === WebSocket.OPEN) {
+                    onlineStatusSocket.send(JSON.stringify({
+                        'type': 'mark_chat_read',
+                        'chatroom_name': chatroomName
+                    }));
+                }
+            }
+        });
 
         onlineStatusSocket.onclose = function(e) {
             console.log('Online Status WebSocket disconnected, reconnecting...');
@@ -153,6 +223,74 @@
             console.error('Online Status WebSocket error:', e);
             updateOnlineCount(0, true);
         };
+
+        function updateChatNotification(chatroomName, unreadCount) {
+            const chatLinks = document.querySelectorAll(`a[href*="${chatroomName}"]`);
+            
+            chatLinks.forEach(chatLink => {
+                let dot = chatLink.querySelector('.notification-dot');
+                let countBadge = chatLink.querySelector('.unread-count');
+                
+                if (unreadCount > 0) {
+                    if (!dot) {
+                        dot = document.createElement('div');
+                        dot.className = 'notification-dot absolute top-2 right-2 z-20 w-2 h-2 bg-red-500 rounded-full';
+                        chatLink.appendChild(dot);
+                    }
+                    
+                    if (unreadCount > 1) {
+                        if (!countBadge) {
+                            countBadge = document.createElement('span');
+                            countBadge.className = 'unread-count bg-red-500 text-white text-xs rounded-full px-1 ml-1';
+                            chatLink.appendChild(countBadge);
+                        }
+                        countBadge.textContent = unreadCount;
+                    } else if (countBadge) {
+                        countBadge.remove();
+                    }
+                } else {
+                    // Remove dot if no unread messages
+                    if (dot) {
+                        dot.remove();
+                    }
+                    if (countBadge) {
+                        countBadge.remove();
+                    }
+                }
+            });
+        }
+
+        function restoreUnreadIndicators() {
+            // Restore all unread indicators after page refresh or status update
+            Object.keys(unreadCounts).forEach(chatroomName => {
+                if (unreadCounts[chatroomName] > 0) {
+                    updateChatNotification(chatroomName, unreadCounts[chatroomName]);
+                }
+            });
+        }
+
+        function saveUnreadCounts() {
+            // Save to session storage (not localStorage due to restrictions)
+            try {
+                sessionStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+            } catch (e) {
+                console.log('Session storage not available');
+            }
+        }
+
+        function loadUnreadCounts() {
+            // Load from session storage
+            try {
+                const stored = sessionStorage.getItem('unreadCounts');
+                if (stored) {
+                    unreadCounts = JSON.parse(stored);
+                    restoreUnreadIndicators();
+                }
+            } catch (e) {
+                console.log('Session storage not available');
+                unreadCounts = {};
+            }
+        }
 
         function updateOnlineCount(count, isError = false) {
             const display = document.querySelector('#online-count-display');
@@ -181,3 +319,41 @@
     });
 </script>
 
+<style>
+    .green-dot {
+        width: 12px;
+        height: 12px;
+        background-color: #10B981;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .gray-dot {
+        width: 12px;
+        height: 12px;
+        background-color: #9CA3AF;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .red-dot {
+        width: 12px;
+        height: 12px;
+        background-color: #EF4444;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .graylight-dot {
+        width: 12px;
+        height: 12px;
+        background-color: #D1D5DB;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .unread-count {
+        font-size: 0.6rem;
+        line-height: 1;
+        padding: 0.15rem 0.3rem;
+    }
+    .hoverlist li a {
+        transition: background-color 0.2s ease;
+    }
+</style>

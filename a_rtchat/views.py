@@ -18,9 +18,15 @@ def chat_view(request, chatroom_name='public-chat'):
     chat_messages = chat_group.chat_messages.all()[:30]
     form = ChatMessageCreationForm()
 
+    # Only mark messages as read for THIS chatroom when opened
+    if request.user in chat_group.members.all():
+        unread_messages = chat_group.chat_messages.exclude(read_by=request.user)
+        for message in unread_messages:
+            message.read_by.add(request.user)
+
     other_users = None
     if chat_group.is_private:
-        if request.user not  in chat_group.members.all():
+        if request.user not in chat_group.members.all():
             raise Http404()
         for member in chat_group.members.all():
             if member != request.user:
@@ -34,6 +40,7 @@ def chat_view(request, chatroom_name='public-chat'):
             else:
                 messages.warning(request, "You need to verify your email to join this chat.")
                 return redirect('profile-settings')
+    
     if request.htmx and request.method == 'POST':
         form = ChatMessageCreationForm(request.POST)
         if form.is_valid():
@@ -41,10 +48,26 @@ def chat_view(request, chatroom_name='public-chat'):
             chat_message.author = request.user
             chat_message.group = chat_group
             chat_message.save()
+            
+            # Mark message as read for sender immediately
+            chat_message.read_by.add(request.user)
+            
+            # Send notification to other members
+            channel_layer = get_channel_layer()
+            for member in chat_group.members.all():
+                if member != request.user:
+                    async_to_sync(channel_layer.group_send)(
+                        f"user_{member.id}",
+                        {
+                            'type': 'unread_message',
+                            'chatroom_name': chatroom_name,
+                            'sender_id': request.user.id
+                        }
+                    )
+            
             context = {
                 'message': chat_message,
-                'user': request.user
-            }
+                }
             return render(request, 'a_rtchat/partials/chat_messages_p.html', context)
 
     context = {
@@ -53,9 +76,9 @@ def chat_view(request, chatroom_name='public-chat'):
         'other_users': other_users,
         'chatroom_name': chatroom_name,
         'chat_group': chat_group,
-        
     }
     return render(request, 'a_rtchat/chat.html', context)
+
 
 @login_required
 def get_or_create_chatroom(request, username):
@@ -114,7 +137,6 @@ def get_or_create_chatroom(request, username):
     return redirect('chatroom', chatroom.group_name)
 
 
-
 @login_required
 def create_groupchat(request):
     if not request.user.is_superuser:
@@ -134,6 +156,7 @@ def create_groupchat(request):
         'form': form,
     }
     return render(request, 'a_rtchat/create_groupchat.html', context)
+
 
 @login_required
 def chatroom_edit_view(request, chatroom_name):
@@ -197,60 +220,68 @@ def chatroom_leave_view(request, chatroom_name):
         return redirect('home')
     return redirect('home')
 
+
 @login_required
 def chat_file_upload(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
     if request.htmx and request.FILES:
         file = request.FILES.get('file')
         if file:
+            # Create the message
             message = ChatMessage.objects.create(
                 file=file,
                 author=request.user,
                 group=chat_group,
             )
+            
+            # Mark as read for sender
+            message.read_by.add(request.user)
+            
+            # Get unread counts for notifications
+            unread_counts = {}
+            for member in chat_group.members.all():
+                if member != request.user:
+                    unread_count = chat_group.chat_messages.exclude(read_by=member).count()
+                    unread_counts[member.id] = unread_count
+            
+            # Send notifications to other members
             channel_layer = get_channel_layer()
-            message_html = render_to_string('a_rtchat/partials/chat_messages_p.html', {
+            for member in chat_group.members.all():
+                if member != request.user:
+                    async_to_sync(channel_layer.group_send)(
+                        f"user_{member.id}",
+                        {
+                            'type': 'unread_message',
+                            'chatroom_name': chatroom_name,
+                            'sender_id': request.user.id,
+                            'unread_count': unread_counts.get(member.id, 0)
+                        }
+                    )
+            
+            # Only broadcast to other clients (not sender)
+            context = {
                 'message': message,
-                'user': request.user
-            })
-            event = {
-                'type': 'message_handler',
-                'message_id': message.id,
-                'message_html': message_html
-            }
-            async_to_sync(channel_layer.group_send)(
-                chatroom_name, event
-            )
-            return HttpResponse(status=200)
-    return HttpResponse(status=400)
-@login_required
-def chat_file_upload(request, chatroom_name):
-    chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
-    if request.htmx and request.FILES:
-        file = request.FILES.get('file')
-        if file:
-            message = ChatMessage.objects.create(
-                file=file,
-                author=request.user,
-                group=chat_group,
-            )
-            channel_layer = get_channel_layer()
-            # Render using chat_message.html to respect sender/receiver styling
-            message_html = render_to_string('a_rtchat/chat_message.html', {
-                'message': message,
-                'user': request.user,  # Sender's context for HTMX response
+                'user': request.user,
                 'chatgroup': chat_group,
-            })
-            event = {
-                'type': 'message_handler',
-                'message_id': message.id,
-                'message_html': message_html  # Include message_html for sender's HTMX response
             }
+            message_html = render_to_string('a_rtchat/chat_message.html', context)
+            
             async_to_sync(channel_layer.group_send)(
-                chatroom_name, event
+                chatroom_name,
+                {
+                    'type': 'file_handler',
+                    'message_id': message.id,
+                    'message_html': message_html,
+                    'author_id': request.user.id,
+                    'exclude_sender': True  # Add this flag
+                }
             )
-            return HttpResponse(status=200)
+            
+            # Return empty response for HTMX (we'll handle display via the form response)
+            return HttpResponse(status=204)
+    
     return HttpResponse(status=400)
+
 
 @login_required
 def filter_chat_messages(request, chatroom_name):
