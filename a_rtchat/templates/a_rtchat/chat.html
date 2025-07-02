@@ -1,21 +1,22 @@
 {% extends 'layouts/blank.html' %}
 {% load static %}
 {% block content %}
-<wrapper class="block max-w-[99rem] mx-auto my-6 px-4 sm:px-4 md:px-4 lg:px-6">
-    <div class="flex flex-col lg:flex-row gap-4">
-        <!-- Left Side - Chats List (hidden on mobile, shown on lg+) -->
-        <div class="hidden lg:block w-72 flex-shrink-0 bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            <div class="bg-gray-700 text-white p-3">
-                <h2 class="text-base font-bold">Your Chats</h2>
+<wrapper class="block max-w-[99rem] mx-auto my-4 md:my-6 px-2 sm:px-4 md:px-4 lg:px-6">
+    <div class="flex flex-col lg:flex-row gap-3 md:gap-4">
+        <!-- Left Side - Chats List (hidden on mobile/tablet, shown on lg+) -->
+        <div class="hidden lg:block w-64 md:w-72 flex-shrink-0 bg-gray-800 rounded-lg md:rounded-xl shadow-md md:shadow-lg overflow-hidden">
+            <div class="bg-gray-700 text-white p-2 md:p-3">
+                <h2 class="text-sm md:text-base font-bold">Your Chats</h2>
             </div>
-            <div class="overflow-y-auto h-[40rem]">
+            <div class="overflow-y-auto h-[calc(100vh-180px)] md:h-[40rem]">
+                <!-- Chat list content remains the same -->
                 <ul class="divide-y divide-gray-700">
                     <!-- Public Chat -->
                     <li class="relative hover:bg-gray-700">
                         <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
-                            <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                            <img class="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs font-medium text-white truncate">Public Group Chat</p>
+                                <p class="text-xs md:text-xs font-medium text-white truncate">Public Group Chat</p>
                                 <p class="text-xs text-gray-400 truncate">Group chat with everyone</p>
                             </div>
                             <div id="public-chat-status" class="z-20"></div>
@@ -27,9 +28,9 @@
                         {% if chatroom.groupchat_name %}
                             <li class="relative hover:bg-gray-700">
                                 <a class="flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
-                                    <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
+                                    <img class="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }}</p>
+                                        <p class="text-xs md:text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }}</p>
                                         <p class="text-xs text-gray-400 truncate">{{ chatroom.members.count }} members</p>
                                     </div>
                                     <div class="chat-status-{{ chatroom.group_name }} z-20"></div>
@@ -45,9 +46,9 @@
                                 {% if member != request.user %}
                                     <li class="relative hover:bg-gray-700">
                                         <a href="{% url 'chatroom' chatroom.group_name %}" class="flex items-center gap-2 p-2">
-                                            <img class="h-8 w-8 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
+                                            <img class="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" src="{{ member.profile.avatar }}" alt="Avatar" />
                                             <div class="flex-1 min-w-0">
-                                                <p class="text-xs font-medium text-white truncate">{{ member.profile.name }}</p>
+                                                <p class="text-xs md:text-xs font-medium text-white truncate">{{ member.profile.name }}</p>
                                                 <p class="text-xs text-gray-400 truncate">@{{ member.username }}</p>
                                             </div>
                                             <div class="user-status-{{ member.id }} z-20"></div>
@@ -64,39 +65,39 @@
         <!-- Right Side - Chat Window -->
         <div class="flex-1">
             {% if chat_group.groupchat_name or chat_group.group_name == 'public-chat' %}
-            <div class="flex justify-between items-center mb-3">
+            <div class="flex justify-between items-center mb-2 md:mb-3">
                 {% if chat_group.group_name == 'public-chat' %}
-                <h2 class="text-xl font-bold text-gray-800">Public Chat</h2>
+                <h2 class="text-lg md:text-xl font-bold text-gray-800">Public Chat</h2>
                 {% else %}
-                <h2 class="text-xl font-bold text-gray-800">{{ chat_group.groupchat_name }}</h2>
+                <h2 class="text-lg md:text-xl font-bold text-gray-800">{{ chat_group.groupchat_name }}</h2>
                 {% endif %}
                 {% if user == chat_group.admin %}
-                <a href="{% url 'edit-chatroom' chat_group.group_name %}" class="flex items-center gap-1 text-gray-600 hover:text-blue-600">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                <a href="{% url 'edit-chatroom' chat_group.group_name %}" class="flex items-center gap-1 text-gray-600 hover:text-blue-600 text-sm">
+                    <svg class="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path>
                     </svg>
-                    <span class="text-sm">Edit</span>
+                    <span>Edit</span>
                 </a>
                 {% endif %}
             </div>
             {% endif %}
-            <div id="chat_window" class="h-[40rem] flex flex-col rounded-xl shadow-xl relative p-1 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %}">
-                <div class="flex justify-between items-center text-emerald-400 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %} p-2 sticky top-0 z-10 rounded-t-lg">
-                    <div class="flex items-center">
+            <div id="chat_window" class="h-[calc(100vh-150px)] md:h-[40rem] flex flex-col rounded-lg md:rounded-xl shadow-lg md:shadow-xl relative p-1 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %}">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center text-emerald-400 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %} p-2 sticky top-0 z-10 rounded-t-lg">
+                    <div class="flex items-center mb-1 md:mb-0">
                         {% if other_users %}
-                        <div id="online-icon" class="gray-dot absolute top-3 left-3" data-user-id="{{ other_users.id }}"></div>
-                        <a href="{% url 'profile' other_users.username %}" class="flex items-center gap-2">
-                            <img class="w-8 h-8 rounded-full object-cover" src="{{ other_users.profile.avatar }}" alt="{{ other_users.username }}'s avatar">
+                        <div id="online-icon" class="gray-dot absolute top-2 left-2 md:top-3 md:left-3" data-user-id="{{ other_users.id }}"></div>
+                        <a href="{% url 'profile' other_users.username %}" class="flex items-center gap-1 md:gap-2">
+                            <img class="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover" src="{{ other_users.profile.avatar }}" alt="{{ other_users.username }}'s avatar">
                             <div>
-                                <span class="text-sm font-bold {% if chat_group.group_name == 'public-chat' %}text-white{% else %}text-white{% endif %}">{{ other_users.profile.name }}</span>
+                                <span class="text-xs md:text-sm font-bold {% if chat_group.group_name == 'public-chat' %}text-white{% else %}text-white{% endif %}">{{ other_users.profile.name }}</span>
                                 <span class="text-xs font-light text-gray-400">@{{ other_users.username }}</span>
                             </div>
                         </a>
                         {% elif chat_group.groupchat_name or chat_group.group_name == 'public-chat' %}
-                        <ul id="groupchat_members" class="flex gap-3">
+                        <ul id="groupchat_members" class="flex gap-1 md:gap-3 flex-wrap">
                             {% for member in chat_group.members.all %}
                             <li>
-                                <a href="{% url 'profile' member.username %}" class="flex flex-col items-center gap-1 w-16 justify-center text-gray-400">
+                                <a href="{% url 'profile' member.username %}" class="flex flex-col items-center gap-1 w-12 md:w-16 justify-center text-gray-400">
                                     <div class="relative">
                                         {% if member == user %}
                                             <div class="green-dot border-2 {% if chat_group.group_name == 'public-chat' %}border-[#6B46C1]{% else %}border-gray-800{% endif %} absolute bottom-0 right-0 rounded-full" data-member-id="{{ member.id }}" id="current-user-dot"></div>
@@ -107,39 +108,39 @@
                                                 <div class="gray-dot border-2 {% if chat_group.group_name == 'public-chat' %}border-[#6B46C1]{% else %}border-gray-800{% endif %} absolute bottom-0 right-0 rounded-full" data-member-id="{{ member.id }}"></div>
                                             {% endif %}
                                         {% endif %}
-                                        <img src="{{ member.profile.avatar }}" alt="{{ member.username }}'s avatar" class="w-10 h-10 rounded-full object-cover">
+                                        <img src="{{ member.profile.avatar }}" alt="{{ member.username }}'s avatar" class="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover">
                                     </div>
-                                    <span class="text-xs text-center">{{ member.profile.name }}</span>
+                                    <span class="text-xxs md:text-xs text-center">{{ member.profile.name }}</span>
                                 </a>
                             </li>
                             {% endfor %}
                         </ul>
                         {% else %}
-                        <div id="online-icon" class="gray-dot absolute top-3 left-3"></div>
+                        <div id="online-icon" class="gray-dot absolute top-2 left-2 md:top-3 md:left-3"></div>
                         <span id="online-count" class="pr-1 text-xs"></span>online
                         {% endif %}
                     </div>
-                    <div class="flex gap-1">
-                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=all" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs transition">Chat</button>
-                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs transition">Files</button>
-                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs transition">Photos</button>
-                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-xs transition">Links</button>
+                    <div class="flex gap-1 md:gap-2 mt-1 md:mt-0">
+                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=all" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-0.5 md:px-2 md:py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-xs transition">Chat</button>
+                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=files" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-0.5 md:px-2 md:py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs transition">Files</button>
+                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=photos" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-0.5 md:px-2 md:py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs transition">Photos</button>
+                        <button hx-get="{% url 'filter_chat_messages' chat_group.group_name %}?filter=links" hx-target="#chat_messages" hx-swap="innerHTML" class="px-2 py-0.5 md:px-2 md:py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-xs transition">Links</button>
                     </div>
                 </div>
                 <div id='chat_container' class="overflow-y-auto grow">
-                    <ul id='chat_messages' class="flex flex-col justify-end gap-1 p-3" hx-get="{% url 'filter_chat_messages' chat_group.group_name %}" hx-trigger="load" hx-target="#chat_messages" hx-swap="innerHTML">
+                    <ul id='chat_messages' class="flex flex-col justify-end gap-1 p-2 md:p-3" hx-get="{% url 'filter_chat_messages' chat_group.group_name %}" hx-trigger="load" hx-target="#chat_messages" hx-swap="innerHTML">
                         {% for message in chat_messages reversed %}
                         {% include 'a_rtchat/chat_message.html' %}
                         {% endfor %}
                     </ul>
                 </div>
-                <div class="sticky bottom-0 z-10 p-2 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %} rounded-b-lg">
-                    <div class="flex flex-col gap-2 items-center rounded-lg px-2 py-1">
+                <div class="sticky bottom-0 z-10 p-1 md:p-2 {% if chat_group.group_name == 'public-chat' %}bg-[#6B46C1]{% else %}bg-gray-800{% endif %} rounded-b-lg">
+                    <div class="flex flex-col gap-1 md:gap-2 items-center rounded-lg px-1 py-1 md:px-2 md:py-1">
                         <div id="chat_form" class="w-full">
                             <form id="chat_message_form" class="flex gap-1">
                                 {% csrf_token %}
-                                <input type="text" name="body" placeholder="Type your message..." class="flex-1 {% if chat_group.group_name == 'public-chat' %}bg-[#9B85D2] text-white{% else %}bg-gray-700 text-white{% endif %} rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md transition text-sm">
+                                <input type="text" name="body" placeholder="Type your message..." class="flex-1 {% if chat_group.group_name == 'public-chat' %}bg-[#9B85D2] text-white{% else %}bg-gray-700 text-white{% endif %} rounded-md px-2 py-1 md:px-3 md:py-1 text-xs md:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 md:px-3 md:py-1 rounded-md transition text-xs md:text-sm">
                                     Send
                                 </button>
                             </form>
@@ -151,11 +152,11 @@
                                 on htmx:afterRequest remove .uploading from me
                                 if event.detail.successful reset() me then call scrollToBottom()">
                                 {% csrf_token %}
-                                <input type="file" name="file" id="id_file" class="flex-1 {% if chat_group.group_name == 'public-chat' %}bg-[#9B85D2] text-white{% else %}bg-gray-700 text-gray-400{% endif %} rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md transition text-sm relative">
+                                <input type="file" name="file" id="id_file" class="flex-1 {% if chat_group.group_name == 'public-chat' %}bg-[#9B85D2] text-white{% else %}bg-gray-700 text-gray-400{% endif %} rounded-md px-2 py-1 md:px-3 md:py-1 text-xs md:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 md:px-3 md:py-1 rounded-md transition text-xs md:text-sm relative">
                                     <span class="upload-text">Send File</span>
                                     <span class="upload-loader absolute inset-0 flex items-center justify-center hidden">
-                                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg class="animate-spin h-3 w-3 md:h-4 md:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -167,7 +168,7 @@
                 </div>
             </div>
             {% if chat_group.members.exists %}
-            <div class="inline-block flex justify-end mt-3">
+            <div class="inline-block flex justify-end mt-2 md:mt-3">
                 {% include 'a_rtchat/partials/modal_chat_leave.html' %}
             </div>
             {% endif %}
@@ -177,6 +178,7 @@
 {% endblock %}
 
 {% block javascript %}
+<!-- JavaScript remains exactly the same as before -->
 <script>
     let chatSocket;
     let chatMessages = document.getElementById('chat_messages');
@@ -269,8 +271,8 @@
             const privateIcon = document.querySelector(`[data-user-id="${data.user_id}"]`);
             if (privateIcon) {
                 privateIcon.className = data.is_online ? 
-                    'green-dot absolute top-3 left-3' : 
-                    'gray-dot absolute top-3 left-3';
+                    'green-dot absolute top-2 left-2 md:top-3 md:left-3' : 
+                    'gray-dot absolute top-2 left-2 md:top-3 md:left-3';
             }
         }
     }
@@ -288,14 +290,14 @@
                 if (unreadCount > 0) {
                     if (!dot) {
                         dot = document.createElement('div');
-                        dot.className = 'notification-dot absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full';
+                        dot.className = 'notification-dot absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full';
                         chatElement.appendChild(dot);
                     }
                     
                     if (unreadCount > 1) {
                         if (!countBadge) {
                             countBadge = document.createElement('span');
-                            countBadge.className = 'unread-count bg-red-500 text-white text-xs rounded-full px-1 ml-1';
+                            countBadge.className = 'unread-count bg-red-500 text-white text-xxs rounded-full px-0.5 ml-0.5';
                             chatElement.appendChild(countBadge);
                         }
                         countBadge.textContent = unreadCount;
@@ -441,22 +443,22 @@ span a:hover {
 }
 
 .green-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background-color: #10B981;
     border-radius: 50%;
     display: inline-block;
 }
 .gray-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background-color: #9CA3AF;
     border-radius: 50%;
     display: inline-block;
 }
 .red-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background-color: #EF4444;
     border-radius: 50%;
     display: inline-block;
@@ -471,14 +473,14 @@ span a:hover {
     scrollbar-color: #4B5563 #1F2937;
 }
 #chat_container::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
 }
 #chat_container::-webkit-scrollbar-track {
     background: #1F2937;
 }
 #chat_container::-webkit-scrollbar-thumb {
     background-color: #4B5563;
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 #chat_message_form input {
@@ -494,14 +496,24 @@ span a:hover {
     transition: all 0.2s ease;
 }
 
-/* Mobile responsive styles */
-@media (max-width: 1023px) {
+/* Responsive styles for tablet/middle screens */
+@media (min-width: 640px) and (max-width: 1023px) {
     #chat_window {
         height: calc(100vh - 120px);
     }
     
-    #groupchat_members {
+    .flex.justify-between.items-center {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .flex.gap-1 {
         flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    #groupchat_members {
         gap: 8px;
     }
     
@@ -515,18 +527,31 @@ span a:hover {
     }
     
     #groupchat_members span {
+        font-size: 0.6rem;
+    }
+}
+
+/* Mobile responsive styles */
+@media (max-width: 639px) {
+    #chat_window {
+        height: calc(100vh - 100px);
+    }
+    
+    #groupchat_members {
+        gap: 4px;
+    }
+    
+    #groupchat_members li {
+        width: 40px;
+    }
+    
+    #groupchat_members img {
+        width: 28px;
+        height: 28px;
+    }
+    
+    #groupchat_members span {
         display: none;
-    }
-    
-    .flex.justify-between.items-center {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .flex.gap-1 {
-        flex-wrap: wrap;
-        justify-content: flex-start;
     }
 }
 </style>
