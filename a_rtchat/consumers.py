@@ -15,10 +15,19 @@ class ChatroomConsumer(WebsocketConsumer):
         self.chatroom_name = self.scope['url_route']['kwargs']['chatroom_name']
         self.chatroom = get_object_or_404(ChatGroup, group_name=self.chatroom_name)
         
-        # Only mark messages as read for THIS chatroom when connected
+        # Mark all messages as read for THIS chatroom when connected
         unread_messages = self.chatroom.chat_messages.exclude(read_by=self.user)
         for message in unread_messages:
             message.read_by.add(self.user)
+        
+        # Notify other components that messages have been read
+        async_to_sync(self.channel_layer.group_send)(
+            f"user_{self.user.id}",
+            {
+                'type': 'chat_read',
+                'chatroom_name': self.chatroom_name
+            }
+        )
         
         # Remove user from other chatrooms' user_online
         for group in ChatGroup.objects.filter(user_online=self.user):
@@ -242,6 +251,13 @@ class ChatroomConsumer(WebsocketConsumer):
             'is_online': is_online,
             'user_id': user_id,
         }))
+    def chat_read(self, event):
+        """Handle chat read notifications"""
+        # Forward the chat_read event to the client
+        self.send(text_data=json.dumps({
+            'type': 'chat_read',
+            'chatroom_name': event['chatroom_name']
+        }))
 
 class OnlineStatusConsumer(WebsocketConsumer):
     def connect(self):
@@ -430,3 +446,21 @@ class OnlineStatusConsumer(WebsocketConsumer):
             'html': html,
             'online_count': online_count,
         }))
+    def chat_read(self, event):
+        """Handle marking a chat as read"""
+        chatroom_name = event['chatroom_name']
+        chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+        
+        # Mark messages as read
+        unread_messages = chat_group.chat_messages.exclude(read_by=self.user)
+        for message in unread_messages:
+            message.read_by.add(self.user)
+        
+        # Send confirmation back to client
+        self.send(text_data=json.dumps({
+            'type': 'chat_read',
+            'chatroom_name': chatroom_name
+        }))
+        
+        # Update unread counts
+        self.send_unread_counts()

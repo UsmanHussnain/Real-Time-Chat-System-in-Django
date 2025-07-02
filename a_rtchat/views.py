@@ -18,6 +18,10 @@ def chat_view(request, chatroom_name='public-chat'):
     chat_messages = chat_group.chat_messages.all()[:30]
     form = ChatMessageCreationForm()
 
+    # Ensure user is added to public chat members if not already
+    if chatroom_name == 'public-chat' and request.user not in chat_group.members.all():
+        chat_group.members.add(request.user)
+
     # Only mark messages as read for THIS chatroom when opened
     if request.user in chat_group.members.all():
         unread_messages = chat_group.chat_messages.exclude(read_by=request.user)

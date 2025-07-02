@@ -162,18 +162,22 @@
 
         onlineStatusSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
+            
+            if (data.type === 'chat_read') {
+                // Clear indicators for this chat
+                clearUnreadIndicators(data.chatroom_name);
+                return;
+            }
+            
             if (data.type === 'online_status') {
-                // Update online user count
                 if (data.online_count !== undefined) {
                     updateOnlineCount(data.online_count);
                 }
                 
-                // Parse the HTML response
                 if (data.html) {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(data.html, 'text/html');
                     
-                    // Update online-in-chat indicator
                     const onlineInChatElement = doc.querySelector('#online-in-chat');
                     if (onlineInChatElement) {
                         const onlineInChat = document.querySelector('#online-in-chat');
@@ -182,7 +186,6 @@
                         }
                     }
                     
-                    // Update status indicators
                     const statusElements = doc.querySelectorAll('.status-indicator');
                     statusElements.forEach(el => {
                         const targetClass = el.getAttribute('data-target');
@@ -193,35 +196,29 @@
                     });
                 }
                 
-                // Restore red dots after status update
                 restoreUnreadIndicators();
                 
             } else if (data.type === 'unread_message') {
-                // Handle unread message notification
                 const chatroomName = data.chatroom_name;
                 const unreadCount = data.unread_count || 1;
                 const senderName = data.sender_name || 'Someone';
                 const senderAvatar = data.sender_avatar || '{% static "images/avatar.svg" %}';
                 const messageBody = data.message_body || 'New message';
                 
-                // Store unread count
                 unreadCounts[chatroomName] = unreadCount;
                 saveUnreadCounts();
                 
                 updateChatNotification(chatroomName, unreadCount);
                 
-                // Show notification if not in the current chat
                 if (!window.location.pathname.includes(chatroomName)) {
                     showNewMessageNotification(senderName, senderAvatar, messageBody);
                 }
                 
             } else if (data.type === 'unread_counts') {
-                // Handle initial unread counts from server
                 if (data.counts) {
                     unreadCounts = data.counts;
                     saveUnreadCounts();
                     
-                    // Update all chat notifications
                     Object.keys(unreadCounts).forEach(chatroomName => {
                         if (unreadCounts[chatroomName] > 0) {
                             updateChatNotification(chatroomName, unreadCounts[chatroomName]);
@@ -231,29 +228,18 @@
             }
         };
 
-        // When clicking on a chat link, clear only that chat's notification
+        // When clicking on a chat link
         document.addEventListener('click', function(e) {
             const chatLink = e.target.closest('#chats-list a, #mobile-chat-sidebar a');
             if (chatLink) {
+                e.preventDefault();
                 const chatUrl = chatLink.getAttribute('href');
                 const chatroomName = chatUrl.split('/').pop();
                 
-                // Only remove notification for this specific chat
-                const dots = chatLink.querySelectorAll('.notification-dot');
-                dots.forEach(dot => {
-                    dot.remove();
-                });
+                // Clear indicators immediately
+                clearUnreadIndicators(chatroomName);
                 
-                const countBadges = chatLink.querySelectorAll('.unread-count');
-                countBadges.forEach(badge => {
-                    badge.remove();
-                });
-                
-                // Clear from unread counts
-                delete unreadCounts[chatroomName];
-                saveUnreadCounts();
-                
-                // Send message to mark this chat's messages as read
+                // Notify server
                 if (onlineStatusSocket.readyState === WebSocket.OPEN) {
                     onlineStatusSocket.send(JSON.stringify({
                         'type': 'mark_chat_read',
@@ -265,6 +251,11 @@
                 if (mobileChatSidebar && !mobileChatSidebar.classList.contains('-translate-x-full')) {
                     mobileChatSidebar.classList.add('-translate-x-full');
                 }
+                
+                // Navigate after handling indicators
+                setTimeout(() => {
+                    window.location.href = chatUrl;
+                }, 100);
             }
         });
 
@@ -280,6 +271,13 @@
             console.error('Online Status WebSocket error:', e);
             updateOnlineCount(0, true);
         };
+
+        function clearUnreadIndicators(chatroomName) {
+            document.querySelectorAll(`a[href*="${chatroomName}"] .notification-dot`).forEach(el => el.remove());
+            document.querySelectorAll(`a[href*="${chatroomName}"] .unread-count`).forEach(el => el.remove());
+            delete unreadCounts[chatroomName];
+            saveUnreadCounts();
+        }
 
         function updateChatNotification(chatroomName, unreadCount) {
             const chatLinks = document.querySelectorAll(`a[href*="${chatroomName}"]`);
@@ -306,19 +304,13 @@
                         countBadge.remove();
                     }
                 } else {
-                    // Remove dot if no unread messages
-                    if (dot) {
-                        dot.remove();
-                    }
-                    if (countBadge) {
-                        countBadge.remove();
-                    }
+                    if (dot) dot.remove();
+                    if (countBadge) countBadge.remove();
                 }
             });
         }
 
         function restoreUnreadIndicators() {
-            // Restore all unread indicators after page refresh or status update
             Object.keys(unreadCounts).forEach(chatroomName => {
                 if (unreadCounts[chatroomName] > 0) {
                     updateChatNotification(chatroomName, unreadCounts[chatroomName]);
@@ -327,7 +319,6 @@
         }
 
         function saveUnreadCounts() {
-            // Save to session storage (not localStorage due to restrictions)
             try {
                 sessionStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
             } catch (e) {
@@ -336,7 +327,6 @@
         }
 
         function loadUnreadCounts() {
-            // Load from session storage
             try {
                 const stored = sessionStorage.getItem('unreadCounts');
                 if (stored) {
@@ -374,7 +364,6 @@
             }
         }
 
-        // Notification permission request
         function requestNotificationPermission() {
             if (!("Notification" in window)) {
                 console.log("This browser does not support desktop notification");
@@ -387,26 +376,22 @@
             }
         }
 
-        // Play sound and show notification for new messages in other chats
         function showNewMessageNotification(senderName, senderAvatar, messageText) {
-            // Play notification sound
             const sound = new Audio('{% static "sounds/notification.mp3" %}');
             sound.play().catch(e => console.log("Notification sound play failed:", e));
             
-            // Show desktop notification if permission granted
             if (Notification.permission === "granted") {
                 const options = {
                     body: messageText || 'New message received',
                     icon: senderAvatar || '{% static "images/avatar.svg" %}',
                     vibrate: [200, 100, 200],
-                    tag: 'new-message-' + Date.now() // Unique tag for each notification
+                    tag: 'new-message-' + Date.now()
                 };
                 
                 new Notification(`Message from ${senderName}`, options);
             }
         }
 
-        // Request permission when page loads
         requestNotificationPermission();
     });
 </script>

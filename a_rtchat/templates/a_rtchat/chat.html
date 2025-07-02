@@ -326,15 +326,24 @@
         chatSocket.onopen = function(e) {
             console.log('WebSocket connected');
             
-            // Mark all messages in THIS chat as read when connected
+            // Immediately mark all messages in THIS chat as read when connected
             chatSocket.send(JSON.stringify({
                 'type': 'mark_chat_read',
                 'chatroom_name': '{{ chatroom_name }}'
             }));
+            
+            // Clear local unread indicators immediately
+            clearUnreadIndicators('{{ chatroom_name }}');
         };
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
+            
+            if (data.type === 'chat_read') {
+                // Clear indicators for this chat
+                clearUnreadIndicators(data.chatroom_name);
+                return;
+            }
             
             if (data.type === 'chat_message' || data.type === 'file_message') {
                 chatMessages.insertAdjacentHTML('beforeend', data.message_html);
@@ -342,12 +351,10 @@
                 debugImageRendering();
                 enhanceLinks();
                 
-                // If this is not our own message, play received sound
                 if (data.author_id !== {{ request.user.id }}) {
                     playMessageReceivedSound();
                 }
                 
-                // If this is our own message, mark it as read immediately
                 if (data.author_id === {{ request.user.id }}) {
                     chatSocket.send(JSON.stringify({
                         'type': 'mark_message_read',
@@ -371,6 +378,22 @@
         };
     }
 
+    function clearUnreadIndicators(chatroomName) {
+        // Remove indicators from all matching chat links
+        document.querySelectorAll(`a[href*="${chatroomName}"] .notification-dot`).forEach(el => el.remove());
+        document.querySelectorAll(`a[href*="${chatroomName}"] .unread-count`).forEach(el => el.remove());
+        
+        // Update in-memory counts
+        if (typeof unreadCounts !== 'undefined') {
+            delete unreadCounts[chatroomName];
+        }
+        
+        // Update session storage if available
+        if (typeof saveUnreadCounts === 'function') {
+            saveUnreadCounts();
+        }
+    }
+
     function sendMessage(message) {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.send(JSON.stringify({
@@ -378,6 +401,18 @@
             }));
         }
     }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Clear indicators for current chat immediately
+        clearUnreadIndicators('{{ chatroom_name }}');
+        
+        // Connect WebSocket
+        connectWebSocket();
+        scrollToBottom();
+        debugImageRendering();
+        enhanceLinks();
+    });
 
     messageForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -402,19 +437,12 @@
         submitBtn.querySelector('.upload-loader').classList.add('hidden');
     });
 
-    // Initialize
-    connectWebSocket();
-    scrollToBottom();
-    debugImageRendering();
-    enhanceLinks();
-
     window.addEventListener('beforeunload', function() {
         if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.close();
         }
     });
 </script>
-
 <style>
 .fullscreen-image-modal {
     display: none;
