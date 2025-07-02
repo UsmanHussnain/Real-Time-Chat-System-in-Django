@@ -101,6 +101,9 @@ class ChatroomConsumer(WebsocketConsumer):
                         'type': 'unread_message',
                         'chatroom_name': self.chatroom_name,
                         'sender_id': self.user.id,
+                        'sender_name': self.user.profile.name,
+                        'sender_avatar': self.user.profile.avatar,
+                        'message_body': body,
                         'unread_count': unread_counts.get(member.id, 0)
                     }
                 )
@@ -159,15 +162,24 @@ class ChatroomConsumer(WebsocketConsumer):
         }))
 
     def unread_message(self, event):
-        # This handles the unread message notifications
+        # Handle unread message notification
         chatroom_name = event['chatroom_name']
         sender_id = event['sender_id']
         unread_count = event['unread_count']
+        sender_name = event.get('sender_name', '')
+        sender_avatar = event.get('sender_avatar', '')
+        message_body = event.get('message_body', '')
+        
+        # Get the chat group
+        chat_group = ChatGroup.objects.get(group_name=chatroom_name)
         
         self.send(text_data=json.dumps({
             'type': 'unread_message',
             'chatroom_name': chatroom_name,
             'sender_id': sender_id,
+            'sender_name': sender_name,
+            'sender_avatar': sender_avatar,
+            'message_body': message_body,
             'unread_count': unread_count
         }))
 

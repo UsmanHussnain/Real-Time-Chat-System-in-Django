@@ -178,7 +178,6 @@
 {% endblock %}
 
 {% block javascript %}
-<!-- JavaScript remains exactly the same as before -->
 <script>
     let chatSocket;
     let chatMessages = document.getElementById('chat_messages');
@@ -312,6 +311,12 @@
         }
     }
 
+    // Play message received sound for active chat
+    function playMessageReceivedSound() {
+        const sound = new Audio('{% static "sounds/message_received.mp3" %}');
+        sound.play().catch(e => console.log("Message sound play failed:", e));
+    }
+
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/chatroom/{{ chatroom_name }}/`;
@@ -336,6 +341,11 @@
                 scrollToBottom();
                 debugImageRendering();
                 enhanceLinks();
+                
+                // If this is not our own message, play received sound
+                if (data.author_id !== {{ request.user.id }}) {
+                    playMessageReceivedSound();
+                }
                 
                 // If this is our own message, mark it as read immediately
                 if (data.author_id === {{ request.user.id }}) {

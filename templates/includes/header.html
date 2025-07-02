@@ -115,6 +115,9 @@
         </ul>
     </div>
 </div>
+<audio id="messageSound" preload="auto">
+    <source src="{% static 'sounds/notification.mp3' %}" type="audio/mpeg">
+</audio>
 
 <script>
     // Global variable to store unread counts
@@ -197,12 +200,20 @@
                 // Handle unread message notification
                 const chatroomName = data.chatroom_name;
                 const unreadCount = data.unread_count || 1;
+                const senderName = data.sender_name || 'Someone';
+                const senderAvatar = data.sender_avatar || '{% static "images/avatar.svg" %}';
+                const messageBody = data.message_body || 'New message';
                 
                 // Store unread count
                 unreadCounts[chatroomName] = unreadCount;
                 saveUnreadCounts();
                 
                 updateChatNotification(chatroomName, unreadCount);
+                
+                // Show notification if not in the current chat
+                if (!window.location.pathname.includes(chatroomName)) {
+                    showNewMessageNotification(senderName, senderAvatar, messageBody);
+                }
                 
             } else if (data.type === 'unread_counts') {
                 // Handle initial unread counts from server
@@ -362,6 +373,41 @@
                     '<div class="graylight-dot"></div>';
             }
         }
+
+        // Notification permission request
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("This browser does not support desktop notification");
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        console.log("Notification permission granted.");
+                    }
+                });
+            }
+        }
+
+        // Play sound and show notification for new messages in other chats
+        function showNewMessageNotification(senderName, senderAvatar, messageText) {
+            // Play notification sound
+            const sound = new Audio('{% static "sounds/notification.mp3" %}');
+            sound.play().catch(e => console.log("Notification sound play failed:", e));
+            
+            // Show desktop notification if permission granted
+            if (Notification.permission === "granted") {
+                const options = {
+                    body: messageText || 'New message received',
+                    icon: senderAvatar || '{% static "images/avatar.svg" %}',
+                    vibrate: [200, 100, 200],
+                    tag: 'new-message-' + Date.now() // Unique tag for each notification
+                };
+                
+                new Notification(`Message from ${senderName}`, options);
+            }
+        }
+
+        // Request permission when page loads
+        requestNotificationPermission();
     });
 </script>
 
