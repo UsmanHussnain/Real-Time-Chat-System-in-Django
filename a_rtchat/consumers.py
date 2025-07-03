@@ -1,4 +1,3 @@
-# consumers.py
 from channels.generic.websocket import WebsocketConsumer
 from .models import *
 from django.shortcuts import get_object_or_404
@@ -15,8 +14,8 @@ class ChatroomConsumer(WebsocketConsumer):
         self.chatroom_name = self.scope['url_route']['kwargs']['chatroom_name']
         self.chatroom = get_object_or_404(ChatGroup, group_name=self.chatroom_name)
         
-        # Mark all messages as read for THIS chatroom when connected
-        unread_messages = self.chatroom.chat_messages.exclude(read_by=self.user)
+        # Mark all messages as read for THIS chatroom when connected, filtered by date_joined
+        unread_messages = self.chatroom.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
         for message in unread_messages:
             message.read_by.add(self.user)
         
@@ -71,10 +70,10 @@ class ChatroomConsumer(WebsocketConsumer):
         text_data_json = json.loads(text_data)
         
         if 'type' in text_data_json and text_data_json['type'] == 'mark_chat_read':
-            # Handle marking chat as read
+            # Handle marking chat as read, filtered by date_joined
             chatroom_name = text_data_json['chatroom_name']
             chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
-            unread_messages = chat_group.chat_messages.exclude(read_by=self.user)
+            unread_messages = chat_group.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
             for message in unread_messages:
                 message.read_by.add(self.user)
             return
@@ -83,92 +82,102 @@ class ChatroomConsumer(WebsocketConsumer):
             # Handle marking single message as read
             message_id = text_data_json['message_id']
             message = get_object_or_404(ChatMessage, id=message_id)
-            message.read_by.add(self.user)
+            if message.created >= self.user.date_joined:
+                message.read_by.add(self.user)
             return
             
         # Normal message handling
-        body = text_data_json['body']
-        message = ChatMessage.objects.create(
-            body=body,
-            author=self.user,
-            group=self.chatroom
-        )
-        
-        # Get unread count for this chatroom for other users
-        unread_counts = {}
-        for member in self.chatroom.members.all():
-            if member != self.user:
-                unread_count = self.chatroom.chat_messages.exclude(read_by=member).count()
-                unread_counts[member.id] = unread_count
-        
-        # Send notification to all members except sender
-        for member in self.chatroom.members.all():
-            if member != self.user:
-                async_to_sync(self.channel_layer.group_send)(
-                    f"user_{member.id}",
-                    {
-                        'type': 'unread_message',
-                        'chatroom_name': self.chatroom_name,
-                        'sender_id': self.user.id,
-                        'sender_name': self.user.profile.name,
-                        'sender_avatar': self.user.profile.avatar,
-                        'message_body': body,
-                        'unread_count': unread_counts.get(member.id, 0)
-                    }
-                )
-        
-        event = {
-            'type': 'message_handler',
-            'message_id': message.id,
-            'author_id': self.user.id
-        }
-        async_to_sync(self.channel_layer.group_send)(
-            self.chatroom_name, event
-        )
+        body = text_data_json.get('body')
+        if body:
+            message = ChatMessage.objects.create(
+                body=body,
+                author=self.user,
+                group=self.chatroom
+            )
+            
+            # Get unread count for this chatroom for other users
+            unread_counts = {}
+            for member in self.chatroom.members.all():
+                if member != self.user:
+                    unread_count = self.chatroom.chat_messages.filter(created__gte=member.date_joined).exclude(read_by=member).count()
+                    unread_counts[member.id] = unread_count
+            
+            # Broadcast to all clients in the chatroom
+            async_to_sync(self.channel_layer.group_send)(
+                self.chatroom_name,
+                {
+                    'type': 'message_handler',
+                    'message_id': message.id,
+                    'author_id': self.user.id
+                }
+            )
+            
+            # Send unread notifications to other members
+            for member in self.chatroom.members.all():
+                if member != self.user:
+                    async_to_sync(self.channel_layer.group_send)(
+                        f"user_{member.id}",
+                        {
+                            'type': 'unread_message',
+                            'chatroom_name': self.chatroom_name,
+                            'sender_id': self.user.id,
+                            'sender_name': self.user.profile.name,
+                            'sender_avatar': self.user.profile.avatar,
+                            'message_body': body,
+                            'unread_count': unread_counts.get(member.id, 0)
+                        }
+                    )
 
     def message_handler(self, event):
         message_id = event['message_id']
         message = ChatMessage.objects.get(id=message_id)
         
-        # Mark message as read if user is in chat
-        if self.user in self.chatroom.user_online.all():
-            message.read_by.add(self.user)
+        # Only handle message if created after user's join date
+        if message.created >= self.user.date_joined:
+            # Mark message as read if user is in chat
+            if self.user in self.chatroom.user_online.all():
+                message.read_by.add(self.user)
         
-        context = {
-            'message': message,
-            'user': self.user,
-            'chatgroup': self.chatroom,
-        }
-        html = render_to_string("a_rtchat/chat_message.html", context=context)
-        self.send(text_data=json.dumps({
-            'type': 'chat_message',
-            'message_html': html,
-            'message_id': message_id,
-            'author_id': event['author_id']
-        }))
+            # Render message with the correct user context
+            context = {
+                'message': message,
+                'user': self.user,  # Use the receiving user's context
+                'chatgroup': self.chatroom,
+            }
+            message_html = render_to_string("a_rtchat/chat_message.html", context)
+        
+            self.send(text_data=json.dumps({
+                'type': 'chat_message',
+                'message_html': message_html,
+                'message_id': message_id,
+                'author_id': event['author_id']
+            }))
 
     def file_handler(self, event):
         """Handle file upload messages"""
         message_id = event['message_id']
         message = ChatMessage.objects.get(id=message_id)
         
-        # Mark message as read if user is in chat
-        if self.user in self.chatroom.user_online.all():
-            message.read_by.add(self.user)
+        # Only handle message if created after user's join date
+        if message.created >= self.user.date_joined:
+            # Mark message as read if user is in chat
+            if self.user in self.chatroom.user_online.all():
+                message.read_by.add(self.user)
         
-        context = {
-            'message': message,
-            'user': self.user,
-            'chatgroup': self.chatroom,
-        }
-        html = render_to_string("a_rtchat/chat_message.html", context)
+            # Render file message with the correct user context
+            context = {
+                'message': message,
+                'user': self.user,  # Use the receiving user's context
+                'chatgroup': self.chatroom,
+            }
+            message_html = render_to_string("a_rtchat/chat_message.html", context)
         
-        self.send(text_data=json.dumps({
-            'type': 'file_message',  # Changed from 'chat_message' to distinguish
-            'message_html': html,
-            'message_id': message_id,
-            'author_id': event['author_id']
-        }))
+            self.send(text_data=json.dumps({
+                'type': 'file_message',
+                'message_html': message_html,
+                'message_id': message_id,
+                'author_id': event['author_id']
+            }))
 
     def unread_message(self, event):
         # Handle unread message notification
@@ -178,9 +187,6 @@ class ChatroomConsumer(WebsocketConsumer):
         sender_name = event.get('sender_name', '')
         sender_avatar = event.get('sender_avatar', '')
         message_body = event.get('message_body', '')
-        
-        # Get the chat group
-        chat_group = ChatGroup.objects.get(group_name=chatroom_name)
         
         self.send(text_data=json.dumps({
             'type': 'unread_message',
@@ -211,7 +217,7 @@ class ChatroomConsumer(WebsocketConsumer):
         user_id = event['user_id']
         is_user_multiple = event['is_user_online']
 
-        chat_messages = self.chatroom.chat_messages.all()[:30]
+        chat_messages = self.chatroom.chat_messages.filter(created__gte=self.user.date_joined)[:30]
         author_ids = [message.author.id for message in chat_messages]
         users = User.objects.filter(id__in=author_ids).distinct()
         
@@ -251,9 +257,8 @@ class ChatroomConsumer(WebsocketConsumer):
             'is_online': is_online,
             'user_id': user_id,
         }))
+
     def chat_read(self, event):
-        """Handle chat read notifications"""
-        # Forward the chat_read event to the client
         self.send(text_data=json.dumps({
             'type': 'chat_read',
             'chatroom_name': event['chatroom_name']
@@ -313,7 +318,7 @@ class OnlineStatusConsumer(WebsocketConsumer):
             # Handle marking a chat as read
             chatroom_name = text_data_json['chatroom_name']
             chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
-            unread_messages = chat_group.chat_messages.exclude(read_by=self.user)
+            unread_messages = chat_group.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
             for message in unread_messages:
                 message.read_by.add(self.user)
 
@@ -323,14 +328,14 @@ class OnlineStatusConsumer(WebsocketConsumer):
         unread_counts = {}
         
         for chat in my_chats:
-            unread_count = chat.chat_messages.exclude(read_by=self.user).count()
+            unread_count = chat.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user).count()
             if unread_count > 0:
                 unread_counts[chat.group_name] = unread_count
         
         # Also check public chat
         try:
             public_chat = ChatGroup.objects.get(group_name='public-chat')
-            public_unread = public_chat.chat_messages.exclude(read_by=self.user).count()
+            public_unread = public_chat.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user).count()
             if public_unread > 0:
                 unread_counts['public-chat'] = public_unread
         except ChatGroup.DoesNotExist:
@@ -345,11 +350,11 @@ class OnlineStatusConsumer(WebsocketConsumer):
         # Handle marking a chat as read
         chatroom_name = event['chatroom_name']
         chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
-        unread_messages = chat_group.chat_messages.exclude(read_by=self.user)
+        unread_messages = chat_group.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
         for message in unread_messages:
             message.read_by.add(self.user)
         
-        # Send update to remove notification dot
+        # Send confirmation back to client
         self.send(text_data=json.dumps({
             'type': 'chat_read',
             'chatroom_name': chatroom_name
@@ -360,9 +365,6 @@ class OnlineStatusConsumer(WebsocketConsumer):
         chatroom_name = event['chatroom_name']
         sender_id = event['sender_id']
         unread_count = event['unread_count']
-        
-        # Get the chat group
-        chat_group = ChatGroup.objects.get(group_name=chatroom_name)
         
         self.send(text_data=json.dumps({
             'type': 'unread_message',
@@ -402,7 +404,7 @@ class OnlineStatusConsumer(WebsocketConsumer):
             online_users = chat.user_online.all()
             
             # Calculate unread counts for each chat
-            unread_count = chat.chat_messages.exclude(read_by=self.user).count()
+            unread_count = chat.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user).count()
             
             if chat.is_private:
                 for member in chat.members.all():
@@ -446,13 +448,14 @@ class OnlineStatusConsumer(WebsocketConsumer):
             'html': html,
             'online_count': online_count,
         }))
+
     def chat_read(self, event):
         """Handle marking a chat as read"""
         chatroom_name = event['chatroom_name']
         chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
         
         # Mark messages as read
-        unread_messages = chat_group.chat_messages.exclude(read_by=self.user)
+        unread_messages = chat_group.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
         for message in unread_messages:
             message.read_by.add(self.user)
         

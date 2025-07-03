@@ -15,7 +15,8 @@ from django.db.models import Q
 @login_required
 def chat_view(request, chatroom_name='public-chat'):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
-    chat_messages = chat_group.chat_messages.all()[:30]
+    # Filter messages to show only those created after the user's signup
+    chat_messages = chat_group.chat_messages.filter(created__gte=request.user.date_joined)[:30]
     form = ChatMessageCreationForm()
 
     # Ensure user is added to public chat members if not already
@@ -24,7 +25,7 @@ def chat_view(request, chatroom_name='public-chat'):
 
     # Only mark messages as read for THIS chatroom when opened
     if request.user in chat_group.members.all():
-        unread_messages = chat_group.chat_messages.exclude(read_by=request.user)
+        unread_messages = chat_group.chat_messages.filter(created__gte=request.user.date_joined).exclude(read_by=request.user)
         for message in unread_messages:
             message.read_by.add(request.user)
 
@@ -65,14 +66,20 @@ def chat_view(request, chatroom_name='public-chat'):
                         {
                             'type': 'unread_message',
                             'chatroom_name': chatroom_name,
-                            'sender_id': request.user.id
+                            'sender_id': request.user.id,
+                            'sender_name': request.user.profile.name,
+                            'sender_avatar': request.user.profile.avatar,
+                            'message_body': chat_message.body,
+                            'unread_count': chat_group.chat_messages.filter(created__gte=member.date_joined).exclude(read_by=member).count()
                         }
                     )
             
             context = {
                 'message': chat_message,
-                }
-            return render(request, 'a_rtchat/partials/chat_messages_p.html', context)
+                'user': request.user,
+                'chatgroup': chat_group,
+            }
+            return render(request, 'a_rtchat/chat_message.html', context)
 
     context = {
         'chat_messages': chat_messages,
@@ -245,7 +252,7 @@ def chat_file_upload(request, chatroom_name):
             unread_counts = {}
             for member in chat_group.members.all():
                 if member != request.user:
-                    unread_count = chat_group.chat_messages.exclude(read_by=member).count()
+                    unread_count = chat_group.chat_messages.filter(created__gte=member.date_joined).exclude(read_by=member).count()
                     unread_counts[member.id] = unread_count
             
             # Send notifications to other members
@@ -258,31 +265,24 @@ def chat_file_upload(request, chatroom_name):
                             'type': 'unread_message',
                             'chatroom_name': chatroom_name,
                             'sender_id': request.user.id,
+                            'sender_name': request.user.profile.name,
+                            'sender_avatar': request.user.profile.avatar,
+                            'message_body': '',
                             'unread_count': unread_counts.get(member.id, 0)
                         }
                     )
             
-            # Only broadcast to other clients (not sender)
-            context = {
-                'message': message,
-                'user': request.user,
-                'chatgroup': chat_group,
-            }
-            message_html = render_to_string('a_rtchat/chat_message.html', context)
-            
+            # Broadcast to all clients via WebSocket (no HTMX response for sender)
             async_to_sync(channel_layer.group_send)(
                 chatroom_name,
                 {
                     'type': 'file_handler',
                     'message_id': message.id,
-                    'message_html': message_html,
                     'author_id': request.user.id,
-                    'exclude_sender': True  # Add this flag
                 }
             )
             
-            # Return empty response for HTMX (we'll handle display via the form response)
-            return HttpResponse(status=204)
+            return HttpResponse(status=204)  # No content response to prevent duplicate rendering
     
     return HttpResponse(status=400)
 
@@ -291,7 +291,8 @@ def chat_file_upload(request, chatroom_name):
 def filter_chat_messages(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
     filter_type = request.GET.get('filter', 'all')
-    chat_messages = chat_group.chat_messages.all()
+    # Filter messages by user's join date
+    chat_messages = chat_group.chat_messages.filter(created__gte=request.user.date_joined)
 
     if filter_type == 'files':
         chat_messages = chat_messages.filter(
@@ -317,7 +318,7 @@ def filter_chat_messages(request, chatroom_name):
     elif filter_type == 'links':
         chat_messages = chat_messages.filter(body__regex=r'(https?://|www\.)[^\s]+')
     elif filter_type == 'all':
-        pass  # No filtering, show all messages
+        pass  # No additional filtering beyond date_joined
 
     chat_messages = chat_messages[:30]
 
