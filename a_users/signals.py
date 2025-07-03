@@ -10,9 +10,7 @@ def user_postsave(sender, instance, created, **kwargs):
     
     # add profile if user is created
     if created:
-        Profile.objects.create(
-            user = user,
-        )
+        Profile.objects.create(user=user)
     else:
         # update allauth emailaddress if exists 
         try:
@@ -24,14 +22,16 @@ def user_postsave(sender, instance, created, **kwargs):
         except:
             # if allauth emailaddress doesn't exist create one
             EmailAddress.objects.create(
-                user = user,
-                email = user.email, 
-                primary = True,
-                verified = False
+                user=user,
+                email=user.email, 
+                primary=True,
+                verified=False
             )
-        
         
 @receiver(pre_save, sender=User)
 def user_presave(sender, instance, **kwargs):
-    if instance.username:
+    # Set username to email if not set
+    if not instance.username:
+        instance.username = instance.email.lower()
+    elif instance.username:
         instance.username = instance.username.lower()

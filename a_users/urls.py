@@ -10,4 +10,7 @@ urlpatterns = [
     path('usernamechange/', profile_usernamechange, name="profile-usernamechange"),
     path('emailverify/', profile_emailverify, name="profile-emailverify"),
     path('delete/', profile_delete_view, name="profile-delete"),
+    path('admin/users/', admin_users_view, name="admin-users"),  # New URL for admin user management
+    path('admin/users/delete/<int:user_id>/', admin_delete_user, name="admin-delete-user"),  # New URL for deleting users
+
 ]

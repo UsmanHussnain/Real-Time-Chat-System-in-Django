@@ -167,11 +167,11 @@
                     </div>
                 </div>
             </div>
-            {% if chat_group.members.exists %}
+            {% comment %} {% if chat_group.members.exists %}
             <div class="inline-block flex justify-end mt-2 md:mt-3">
                 {% include 'a_rtchat/partials/modal_chat_leave.html' %}
             </div>
-            {% endif %}
+            {% endif %} {% endcomment %}
         </div>
     </div>
 </wrapper>

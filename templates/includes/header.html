@@ -39,6 +39,7 @@
                             <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-edit' %}" class="block p-1">Edit Profile</a></li>
                             {% if request.user.is_superuser %}
                                 <li class="hover:bg-gray-100 rounded"><a href="{% url 'new_groupchat' %}" class="block p-1">Create Group Chat</a></li>
+                                <li class="hover:bg-gray-100 rounded"><a href="{% url 'admin-users' %}" class="block p-1">Delete Users</a></li>
                             {% endif %}
                             <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-settings' %}" class="block p-1">Settings</a></li>
                             <li class="hover:bg-gray-100 rounded"><a href="{% url 'account_logout' %}" class="block p-1 text-red-500">Log Out</a></li>
@@ -444,5 +445,18 @@
         #mobile-chat-sidebar {
             display: none !important;
         }
+    }
+    /* Add this to your existing CSS */
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table th, .table td {
+        vertical-align: middle;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
     }
 </style>

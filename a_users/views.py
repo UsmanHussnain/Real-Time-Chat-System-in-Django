@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib.auth.models import User
 from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from .forms import *
 
@@ -103,6 +104,48 @@ def profile_emailverify(request):
 
 @login_required
 def profile_delete_view(request):
+    user = request.user
+    if request.method == "POST":
+        logout(request)
+        user.delete()
+        messages.success(request, 'Account deleted, what a pity')
+        return redirect('home')
+    
+    return render(request, 'a_users/profile_delete.html')
+
+
+@login_required
+def admin_users_view(request):
+    # Only allow staff/admin users to access this page
+    if not request.user.is_staff:
+        raise PermissionDenied()
+    
+    users = User.objects.all().order_by('date_joined')
+    return render(request, 'a_users/admin_users.html', {'users': users})
+
+@login_required
+def admin_delete_user(request, user_id):
+    # Only allow staff/admin users to delete users
+    if not request.user.is_staff:
+        raise PermissionDenied()
+    
+    user_to_delete = get_object_or_404(User, id=user_id)
+    
+    # Prevent admin from deleting themselves
+    if user_to_delete != request.user:
+        user_to_delete.delete()
+        messages.success(request, f'User {user_to_delete.email} deleted successfully.')
+    else:
+        messages.warning(request, 'You cannot delete your own account from here.')
+    
+    return redirect('admin-users')
+
+@login_required
+def profile_delete_view(request):
+    # Only allow users to delete their own account from here
+    if request.user.is_staff:
+        return redirect('admin-users')
+    
     user = request.user
     if request.method == "POST":
         logout(request)
