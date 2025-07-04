@@ -3,14 +3,15 @@ from django.contrib.auth.decorators import login_required
 from .models import *
 from .forms import *
 from django.contrib.auth.models import User
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.contrib import messages
 from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.template.loader import render_to_string
 from django.db.models import Q
-
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 @login_required
 def chat_view(request, chatroom_name='public-chat'):
@@ -172,6 +173,8 @@ def create_groupchat(request):
 @login_required
 def chatroom_edit_view(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+
+    # Only superuser and group admin can edit
     if not request.user.is_superuser:
         messages.error(request, "Only superusers can edit group chats.")
         raise Http404()
@@ -179,18 +182,28 @@ def chatroom_edit_view(request, chatroom_name):
         messages.error(request, "Only the admin can edit this group chat.")
         raise Http404()
 
+    # Pre-fill form
     form = ChatRoomEditForm(instance=chat_group)
-    
+
+    # Handle submission
     if request.method == 'POST':
         form = ChatRoomEditForm(request.POST, instance=chat_group)
         if form.is_valid():
             form.save()
             messages.success(request, "Chatroom updated successfully.")
+            
+            # Remove members permanently (including WebSocket)
             remove_members = request.POST.getlist('remove_members')
             for member_id in remove_members:
-                member = User.objects.get(id=member_id)
-                chat_group.members.remove(member)
+                try:
+                    member = User.objects.get(id=member_id)
+                    chat_group.members.remove(member)
+                    chat_group.user_online.remove(member)  # WebSocket disconnect
+                except User.DoesNotExist:
+                    continue  # just skip if member doesn't exist
+
             return redirect('chatroom', chatroom_name)
+
     context = {
         'form': form,
         'chat_group': chat_group,
@@ -328,3 +341,30 @@ def filter_chat_messages(request, chatroom_name):
         'chatgroup': chat_group,
     }
     return render(request, 'a_rtchat/partials/chat_messages_filtered.html', context)
+
+@csrf_exempt
+@login_required
+def add_member_via_email(request, chatroom_name):
+    if request.method == 'POST':
+        chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
+        if request.user != chat_group.admin:
+            return JsonResponse({'status': 'error', 'message': 'Only admin can add members.'})
+
+        try:
+            data = json.loads(request.body)
+            email = data.get('email')
+            user = User.objects.get(email=email)
+
+            if user in chat_group.members.all():
+                return JsonResponse({'status': 'error', 'message': 'User already in group.'})
+
+            chat_group.members.add(user)
+            return JsonResponse({
+                'status': 'success', 
+                'message': f'{user.username} added to group successfully.'
+            })
+        except User.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'User not found.'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'})
