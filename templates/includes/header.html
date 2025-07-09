@@ -7,7 +7,7 @@
         </a>
         <div class="online-user-count">
             {% if request.user.is_authenticated %}
-                <span id="online-count-display" class="bg-red-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3">
+                <span id="online-count-display" class="bg-gray-500 rounded-md pt-0.55 pb-1 px-1.5 text-white text-xs ml-3">
                     Loading...
                 </span>
             {% endif %}
@@ -34,7 +34,7 @@
                     x-transition:enter="duration-300 ease-out"
                     x-transition:enter-start="opacity-0 -translate-y-5 scale-90"
                     x-transition:enter-end="opacity-100 translate-y-0 scale-100">
-                        <ul class="hoverlist [&>li>a]:justify-start text-sm">
+                        <ul class="hoverlist [&>li>a]:justify-start(Collections.reverseOrder()) text-sm">
                             <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile' %}" class="block p-1">My Profile</a></li>
                             <li class="hover:bg-gray-100 rounded"><a href="{% url 'profile-edit' %}" class="block p-1">Edit Profile</a></li>
                             {% if request.user.is_superuser %}
@@ -127,14 +127,114 @@
     document.addEventListener('DOMContentLoaded', () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/online_status/`;
-        const onlineStatusSocket = new WebSocket(wsUrl);
+        let onlineStatusSocket;
 
-        // Initial state
-        updateOnlineCount(0);
-        updateOnlineInChat(false);
-        
-        // Load unread counts from server on page load
-        loadUnreadCounts();
+        function connectWebSocket() {
+            onlineStatusSocket = new WebSocket(wsUrl);
+
+            // Initial state
+            updateOnlineCount(0);
+            updateOnlineInChat(false);
+            
+            // Load unread counts from server on page load
+            loadUnreadCounts();
+
+            onlineStatusSocket.onopen = function(e) {
+                console.log('Online Status WebSocket connected');
+                // Request initial unread counts and online status
+                onlineStatusSocket.send(JSON.stringify({
+                    'type': 'get_unread_counts'
+                }));
+                onlineStatusSocket.send(JSON.stringify({
+                    'type': 'get_online_status'
+                }));
+            };
+
+            onlineStatusSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                
+                if (data.type === 'chat_read') {
+                    // Clear indicators for this chat
+                    clearUnreadIndicators(data.chatroom_name);
+                    return;
+                }
+                
+                if (data.type === 'online_status') {
+                    if (data.online_count !== undefined) {
+                        updateOnlineCount(data.online_count, data.is_error || false);
+                    }
+                    
+                    if (data.is_online !== undefined) {
+                        updateOnlineInChat(data.is_online);
+                    }
+                    
+                    if (data.html) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(data.html, 'text/html');
+                        
+                        const onlineInChatElement = doc.querySelector('#online-in-chat');
+                        if (onlineInChatElement) {
+                            const onlineInChat = document.querySelector('#online-in-chat');
+                            if (onlineInChat) {
+                                onlineInChat.innerHTML = onlineInChatElement.innerHTML;
+                            }
+                        }
+                        
+                        const statusElements = doc.querySelectorAll('.status-indicator');
+                        statusElements.forEach(el => {
+                            const targetClass = el.getAttribute('data-target');
+                            const targetElements = document.querySelectorAll(`.${targetClass}`);
+                            targetElements.forEach(target => {
+                                target.innerHTML = el.innerHTML;
+                            });
+                        });
+                    }
+                    
+                    restoreUnreadIndicators();
+                    
+                } else if (data.type === 'unread_message') {
+                    const chatroomName = data.chatroom_name;
+                    const unreadCount = data.unread_count || 1;
+                    const senderName = data.sender_name || 'Someone';
+                    const senderAvatar = data.sender_avatar || '{% static "images/avatar.svg" %}';
+                    const messageBody = data.message_body || 'New message';
+                    
+                    unreadCounts[chatroomName] = unreadCount;
+                    saveUnreadCounts();
+                    
+                    updateChatNotification(chatroomName, unreadCount);
+                    
+                    if (!window.location.pathname.includes(chatroomName)) {
+                        showNewMessageNotification(senderName, senderAvatar, messageBody);
+                    }
+                    
+                } else if (data.type === 'unread_counts') {
+                    if (data.counts) {
+                        unreadCounts = data.counts;
+                        saveUnreadCounts();
+                        
+                        Object.keys(unreadCounts).forEach(chatroomName => {
+                            if (unreadCounts[chatroomName] > 0) {
+                                updateChatNotification(chatroomName, unreadCounts[chatroomName]);
+                            }
+                        });
+                    }
+                }
+            };
+
+            onlineStatusSocket.onclose = function(e) {
+                console.log('Online Status WebSocket disconnected, reconnecting...');
+                updateOnlineCount(0, true);
+                updateOnlineInChat(false);
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            onlineStatusSocket.onerror = function(e) {
+                console.error('Online Status WebSocket error:', e);
+                updateOnlineCount(0, true);
+                updateOnlineInChat(false);
+            };
+        }
 
         // Mobile chat sidebar toggle
         const mobileChatToggle = document.getElementById('mobile-chat-toggle');
@@ -152,82 +252,6 @@
                 mobileChatSidebar.classList.add('-translate-x-full');
             });
         }
-
-        onlineStatusSocket.onopen = function(e) {
-            console.log('Online Status WebSocket connected');
-            // Request initial unread counts
-            onlineStatusSocket.send(JSON.stringify({
-                'type': 'get_unread_counts'
-            }));
-        };
-
-        onlineStatusSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            
-            if (data.type === 'chat_read') {
-                // Clear indicators for this chat
-                clearUnreadIndicators(data.chatroom_name);
-                return;
-            }
-            
-            if (data.type === 'online_status') {
-                if (data.online_count !== undefined) {
-                    updateOnlineCount(data.online_count);
-                }
-                
-                if (data.html) {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(data.html, 'text/html');
-                    
-                    const onlineInChatElement = doc.querySelector('#online-in-chat');
-                    if (onlineInChatElement) {
-                        const onlineInChat = document.querySelector('#online-in-chat');
-                        if (onlineInChat) {
-                            onlineInChat.innerHTML = onlineInChatElement.innerHTML;
-                        }
-                    }
-                    
-                    const statusElements = doc.querySelectorAll('.status-indicator');
-                    statusElements.forEach(el => {
-                        const targetClass = el.getAttribute('data-target');
-                        const targetElements = document.querySelectorAll(`.${targetClass}`);
-                        targetElements.forEach(target => {
-                            target.innerHTML = el.innerHTML;
-                        });
-                    });
-                }
-                
-                restoreUnreadIndicators();
-                
-            } else if (data.type === 'unread_message') {
-                const chatroomName = data.chatroom_name;
-                const unreadCount = data.unread_count || 1;
-                const senderName = data.sender_name || 'Someone';
-                const senderAvatar = data.sender_avatar || '{% static "images/avatar.svg" %}';
-                const messageBody = data.message_body || 'New message';
-                
-                unreadCounts[chatroomName] = unreadCount;
-                saveUnreadCounts();
-                
-                updateChatNotification(chatroomName, unreadCount);
-                
-                if (!window.location.pathname.includes(chatroomName)) {
-                    showNewMessageNotification(senderName, senderAvatar, messageBody);
-                }
-                
-            } else if (data.type === 'unread_counts') {
-                if (data.counts) {
-                    unreadCounts = data.counts;
-                    saveUnreadCounts();
-                    
-                    Object.keys(unreadCounts).forEach(chatroomName => {
-                        if (unreadCounts[chatroomName] > 0) {
-                            updateChatNotification(chatroomName, unreadCounts[chatroomName]);
-                        }
-                    });
-                }
-            }
-        };
 
         // When clicking on a chat link
         document.addEventListener('click', function(e) {
@@ -259,19 +283,6 @@
                 }, 100);
             }
         });
-
-        onlineStatusSocket.onclose = function(e) {
-            console.log('Online Status WebSocket disconnected, reconnecting...');
-            updateOnlineCount(0, true);
-            setTimeout(() => {
-                document.dispatchEvent(new Event('DOMContentLoaded'));
-            }, 3000);
-        };
-
-        onlineStatusSocket.onerror = function(e) {
-            console.error('Online Status WebSocket error:', e);
-            updateOnlineCount(0, true);
-        };
 
         function clearUnreadIndicators(chatroomName) {
             document.querySelectorAll(`a[href*="${chatroomName}"] .notification-dot`).forEach(el => el.remove());
@@ -393,6 +404,8 @@
             }
         }
 
+        // Initiate WebSocket connection
+        connectWebSocket();
         requestNotificationPermission();
     });
 </script>

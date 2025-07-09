@@ -321,6 +321,11 @@ class OnlineStatusConsumer(WebsocketConsumer):
             unread_messages = chat_group.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user)
             for message in unread_messages:
                 message.read_by.add(self.user)
+            # Update online status after marking messages as read
+            self.online_status()
+        elif text_data_json.get('type') == 'get_online_status':
+            # Send current online status to client
+            self.online_status()
 
     def send_unread_counts(self):
         # Calculate unread counts for all user's chats
@@ -359,94 +364,117 @@ class OnlineStatusConsumer(WebsocketConsumer):
             'type': 'chat_read',
             'chatroom_name': chatroom_name
         }))
+        
+        # Update online status
+        self.online_status()
 
     def unread_message(self, event):
         # Handle unread message notification
         chatroom_name = event['chatroom_name']
         sender_id = event['sender_id']
         unread_count = event['unread_count']
+        sender_name = event.get('sender_name', '')
+        sender_avatar = event.get('sender_avatar', '')
+        message_body = event.get('message_body', '')
         
         self.send(text_data=json.dumps({
             'type': 'unread_message',
             'chatroom_name': chatroom_name,
             'sender_id': sender_id,
+            'sender_name': sender_name,
+            'sender_avatar': sender_avatar,
+            'message_body': message_body,
             'unread_count': unread_count
         }))
 
     def online_status(self):
         if hasattr(self, 'group'):
             online_count = self.group.user_online.count() - 1
-            event = {
-                'type': 'online_status_handler',
+            try:
+                public_chat = ChatGroup.objects.get(group_name='public-chat')
+                public_chat_users = public_chat.user_online.all()
+                other_online_users = [u for u in public_chat_users if u.id != self.user.id]
+                public_chat_status = len(other_online_users) > 0
+            except ChatGroup.DoesNotExist:
+                public_chat = ChatGroup.objects.create(group_name='public-chat', is_private=False)
+                other_online_users = []
+                public_chat_status = False
+
+            my_chats = self.user.chat_groups.all()
+            chat_statuses = []
+            is_online_in_chats = False
+            
+            for chat in my_chats:
+                online_users = chat.user_online.all()
+                
+                # Calculate unread counts for each chat
+                unread_count = chat.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user).count()
+                
+                if chat.is_private:
+                    for member in chat.members.all():
+                        if member != self.user:
+                            is_member_online = member in online_users
+                            if is_member_online:
+                                is_online_in_chats = True
+                            chat_statuses.append({
+                                'type': 'private',
+                                'chat_id': chat.id,
+                                'user_id': member.id,
+                                'is_online': is_member_online,
+                                'avatar': member.profile.avatar,
+                                'name': member.profile.name,
+                                'group_name': chat.group_name,
+                                'unread_count': unread_count
+                            })
+                else:
+                    is_group_online = any(u.id != self.user.id for u in online_users)
+                    if is_group_online:
+                        is_online_in_chats = True
+                    chat_statuses.append({
+                        'type': 'group',
+                        'chat_id': chat.id,
+                        'is_online': is_group_online,
+                        'group_name': chat.group_name,
+                        'chat_name': chat.groupchat_name,
+                        'online_users': [u for u in online_users if u.id != self.user.id],
+                        'unread_count': unread_count
+                    })
+        
+            is_online_in_chats = is_online_in_chats or public_chat_status
+            
+            context = {
                 'online_count': online_count,
+                'online_in_chats': is_online_in_chats,
+                'public_chat_status': public_chat_status,
+                'chat_statuses': chat_statuses,
+                'user': self.user,
             }
+            
+            html = render_to_string("a_rtchat/partials/online_status.html", context)
+            self.send(text_data=json.dumps({
+                'type': 'online_status',
+                'html': html,
+                'online_count': online_count,
+                'is_online': is_online_in_chats,
+            }))
+            
+            # Broadcast to all clients in the online_status group
             async_to_sync(self.channel_layer.group_send)(
-                self.group_name, event
+                self.group_name,
+                {
+                    'type': 'online_status_handler',
+                    'online_count': online_count,
+                    'is_online': is_online_in_chats,
+                    'html': html
+                }
             )
 
     def online_status_handler(self, event):
-        online_count = event['online_count']
-        
-        try:
-            public_chat = ChatGroup.objects.get(group_name='public_chat')
-            public_chat_users = public_chat.user_online.all()
-            other_online_users = [u for u in public_chat_users if u.id != self.user.id]
-            public_chat_status = public_chat.user_online.exists()
-        except ChatGroup.DoesNotExist:
-            public_chat = ChatGroup.objects.create(group_name='public_chat', is_private=False)
-            other_online_users = []
-            public_chat_status = False
-
-        my_chats = self.user.chat_groups.all()
-        chat_statuses = []
-        
-        for chat in my_chats:
-            online_users = chat.user_online.all()
-            
-            # Calculate unread counts for each chat
-            unread_count = chat.chat_messages.filter(created__gte=self.user.date_joined).exclude(read_by=self.user).count()
-            
-            if chat.is_private:
-                for member in chat.members.all():
-                    if member != self.user:
-                        chat_statuses.append({
-                            'type': 'private',
-                            'chat_id': chat.id,
-                            'user_id': member.id,
-                            'is_online': member in online_users,
-                            'avatar': member.profile.avatar,
-                            'name': member.profile.name,
-                            'group_name': chat.group_name,
-                            'unread_count': unread_count
-                        })
-            else:
-                chat_statuses.append({
-                    'type': 'group',
-                    'chat_id': chat.id,
-                    'is_online': any(u.id != self.user.id for u in online_users),
-                    'group_name': chat.group_name,
-                    'chat_name': chat.groupchat_name,
-                    'online_users': [u for u in online_users if u.id != self.user.id],
-                    'unread_count': unread_count
-                })
-        
-        online_in_chats = bool(other_online_users or any(
-            status['is_online'] for status in chat_statuses
-        ))
-        
-        context = {
-            'online_count': online_count,
-            'online_in_chats': online_in_chats,
-            'public_chat_status': public_chat_status,
-            'chat_statuses': chat_statuses,
-            'user': self.user,
-        }
-        
-        html = render_to_string("a_rtchat/partials/online_status.html", context)
         self.send(text_data=json.dumps({
             'type': 'online_status',
-            'html': html,
-            'online_count': online_count,
+            'html': event['html'],
+            'online_count': event['online_count'],
+            'is_online': event['is_online']
         }))
 
     def chat_read(self, event):
@@ -465,5 +493,6 @@ class OnlineStatusConsumer(WebsocketConsumer):
             'chatroom_name': chatroom_name
         }))
         
-        # Update unread counts
+        # Update unread counts and online status
         self.send_unread_counts()
+        self.online_status()
