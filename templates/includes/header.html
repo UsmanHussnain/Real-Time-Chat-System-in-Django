@@ -71,7 +71,7 @@
                 <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
                     <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-white truncate">Public Group Chat</p>
+                        <p class="text-xs font-medium text-white truncate">ASKSEO GROUP</p>
                         <p class="text-xs text-gray-400 truncate">Group chat with everyone</p>
                     </div>
                     <div id="public-chat-status" class="z-20"></div>
@@ -85,7 +85,7 @@
                         <a class="flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
                             <img class="h-8 w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }}</p>
+                                <p class="text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }} GROUP</p>
                                 <p class="text-xs text-gray-400 truncate">{{ chatroom.members.count }} members</p>
                             </div>
                             <div class="chat-status-{{ chatroom.group_name }} z-20"></div>

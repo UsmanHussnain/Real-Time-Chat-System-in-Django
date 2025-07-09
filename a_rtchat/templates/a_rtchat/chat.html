@@ -16,7 +16,7 @@
                         <a href="{% url 'home' %}" class="flex items-center gap-2 p-2">
                             <img class="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs md:text-xs font-medium text-white truncate">Public Group Chat</p>
+                                <p class="text-xs md:text-xs font-medium text-white truncate">ASKSEO GROUP</p>
                                 <p class="text-xs text-gray-400 truncate">Group chat with everyone</p>
                             </div>
                             <div id="public-chat-status" class="z-20"></div>
@@ -30,7 +30,7 @@
                                 <a class="flex items-center gap-2 p-2" href="{% url 'chatroom' chatroom.group_name %}">
                                     <img class="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" src="{% static 'images/avatar.svg' %}" alt="Avatar" />
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-xs md:text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }}</p>
+                                        <p class="text-xs md:text-xs font-medium text-white truncate">{{ chatroom.groupchat_name }} GROUP</p>
                                         <p class="text-xs text-gray-400 truncate">{{ chatroom.members.count }} members</p>
                                     </div>
                                     <div class="chat-status-{{ chatroom.group_name }} z-20"></div>
@@ -67,7 +67,7 @@
             {% if chat_group.groupchat_name or chat_group.group_name == 'public-chat' %}
             <div class="flex justify-between items-center mb-2 md:mb-3">
                 {% if chat_group.group_name == 'public-chat' %}
-                <h2 class="text-lg md:text-xl font-bold text-gray-800">Public Chat</h2>
+                <h2 class="text-lg md:text-xl font-bold text-gray-800">ASKSEO GROUP</h2>
                 {% else %}
                 <h2 class="text-lg md:text-xl font-bold text-gray-800">{{ chat_group.groupchat_name }}</h2>
                 {% endif %}
