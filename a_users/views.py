@@ -8,7 +8,8 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from .forms import *
-from a_rtchat.models import ChatGroup  # Import ChatGroup to handle chat group cleanup
+from a_rtchat.models import ChatGroup, ChatMessage
+from allauth.account.models import EmailAddress
 
 def profile_view(request, username=None):
     if username:
@@ -92,16 +93,24 @@ def profile_emailverify(request):
 def profile_delete_view(request):
     user = request.user
     if request.method == "POST":
-        # Remove user from all chat groups
-        for chat_group in ChatGroup.objects.filter(members=user):
-            chat_group.members.remove(user)
-            chat_group.user_online.remove(user)  # Remove from online users
-            if chat_group.admin == user:
-                chat_group.admin = None  # Clear admin if user was admin
-                chat_group.save()
-        logout(request)
-        user.delete()
-        messages.success(request, 'Account deleted, what a pity')
+        try:
+            # Remove user from all chat groups
+            for chat_group in ChatGroup.objects.filter(members=user):
+                chat_group.members.remove(user)
+                chat_group.user_online.remove(user)
+                if chat_group.admin == user:
+                    chat_group.admin = None
+                    chat_group.save()
+            # Delete user's chat messages
+            ChatMessage.objects.filter(author=user).delete()
+            # Delete user's email addresses
+            EmailAddress.objects.filter(user=user).delete()
+            logout(request)
+            user.delete()
+            messages.success(request, 'Account deleted, what a pity')
+        except Exception as e:
+            messages.error(request, f'Error deleting account: {str(e)}')
+            return redirect('profile-settings')
         return redirect('home')
 
     return render(request, 'a_users/profile_delete.html')
@@ -111,7 +120,7 @@ def admin_users_view(request):
     if not request.user.is_staff:
         raise PermissionDenied()
 
-    users = User. objects.all().order_by('date_joined')
+    users = User.objects.all().order_by('date_joined')
     return render(request, 'a_users/admin_users.html', {'users': users})
 
 @login_required
@@ -122,15 +131,23 @@ def admin_delete_user(request, user_id):
     user_to_delete = get_object_or_404(User, id=user_id)
 
     if user_to_delete != request.user:
-        # Remove user from all chat groups
-        for chat_group in ChatGroup.objects.filter(members=user_to_delete):
-            chat_group.members.remove(user_to_delete)
-            chat_group.user_online.remove(user_to_delete)
-            if chat_group.admin == user_to_delete:
-                chat_group.admin = None
-                chat_group.save()
-        user_to_delete.delete()
-        messages.success(request, f'User {user_to_delete.email} deleted successfully.')
+        try:
+            # Remove user from all chat groups
+            for chat_group in ChatGroup.objects.filter(members=user_to_delete):
+                chat_group.members.remove(user_to_delete)
+                chat_group.user_online.remove(user_to_delete)
+                if chat_group.admin == user_to_delete:
+                    chat_group.admin = None
+                    chat_group.save()
+            # Delete user's chat messages
+            ChatMessage.objects.filter(author=user_to_delete).delete()
+            # Delete user's email addresses
+            EmailAddress.objects.filter(user=user_to_delete).delete()
+            user_to_delete.delete()
+            messages.success(request, f'User {user_to_delete.email} deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Error deleting user: {str(e)}')
+            return redirect('admin-users')
     else:
         messages.warning(request, 'You cannot delete your own account from here.')
 
