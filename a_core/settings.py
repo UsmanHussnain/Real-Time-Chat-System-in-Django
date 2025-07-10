@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-rj#-z^kx3j+1ay397otg6j8m_8#v^$^$jys6&41vy^&6le)ezc
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*', 'https://chat.askseo.me' ]
-
+ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [ 'https://*',  'https://chat.askseo.me']
 
 
@@ -147,6 +147,11 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# For collecting static in production
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media' 
 
@@ -164,3 +169,4 @@ ACCOUNT_SIGNUP_FIELDS = ['email', 'password1', 'password2']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_ADAPTER = 'a_users.adapters.CustomAccountAdapter'
+
