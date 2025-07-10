@@ -123,8 +123,25 @@
 <script>
     // Global variable to store unread counts
     let unreadCounts = {};
-    
+
     document.addEventListener('DOMContentLoaded', () => {
+        // ===== Global Online Count via /ws/global_online/ =====
+        const onlineCountDisplay = document.getElementById('online-count-display');
+        const globalSocket = new WebSocket(
+            (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws/global_online/"
+        );
+
+        globalSocket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'global_online_count') {
+                if (onlineCountDisplay) {
+                    onlineCountDisplay.textContent = `Online: ${data.count - 1}`;
+                    onlineCountDisplay.className = 'bg-green-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
+                }
+            }
+        };
+
+        // ===== Per-Chat Online Status and Unread Count Socket =====
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/online_status/`;
         let onlineStatusSocket;
@@ -132,46 +149,32 @@
         function connectWebSocket() {
             onlineStatusSocket = new WebSocket(wsUrl);
 
-            // Initial state
-            updateOnlineCount(0);
             updateOnlineInChat(false);
-            
-            // Load unread counts from server on page load
             loadUnreadCounts();
 
             onlineStatusSocket.onopen = function(e) {
                 console.log('Online Status WebSocket connected');
-                // Request initial unread counts and online status
-                onlineStatusSocket.send(JSON.stringify({
-                    'type': 'get_unread_counts'
-                }));
-                onlineStatusSocket.send(JSON.stringify({
-                    'type': 'get_online_status'
-                }));
+                onlineStatusSocket.send(JSON.stringify({ 'type': 'get_unread_counts' }));
+                onlineStatusSocket.send(JSON.stringify({ 'type': 'get_online_status' }));
             };
 
             onlineStatusSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
-                
+
                 if (data.type === 'chat_read') {
-                    // Clear indicators for this chat
                     clearUnreadIndicators(data.chatroom_name);
                     return;
                 }
-                
+
                 if (data.type === 'online_status') {
-                    if (data.online_count !== undefined) {
-                        updateOnlineCount(data.online_count, data.is_error || false);
-                    }
-                    
                     if (data.is_online !== undefined) {
                         updateOnlineInChat(data.is_online);
                     }
-                    
+
                     if (data.html) {
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(data.html, 'text/html');
-                        
+
                         const onlineInChatElement = doc.querySelector('#online-in-chat');
                         if (onlineInChatElement) {
                             const onlineInChat = document.querySelector('#online-in-chat');
@@ -179,7 +182,7 @@
                                 onlineInChat.innerHTML = onlineInChatElement.innerHTML;
                             }
                         }
-                        
+
                         const statusElements = doc.querySelectorAll('.status-indicator');
                         statusElements.forEach(el => {
                             const targetClass = el.getAttribute('data-target');
@@ -189,30 +192,28 @@
                             });
                         });
                     }
-                    
+
                     restoreUnreadIndicators();
-                    
+
                 } else if (data.type === 'unread_message') {
                     const chatroomName = data.chatroom_name;
                     const unreadCount = data.unread_count || 1;
                     const senderName = data.sender_name || 'Someone';
                     const senderAvatar = data.sender_avatar || '{% static "images/avatar.svg" %}';
                     const messageBody = data.message_body || 'New message';
-                    
+
                     unreadCounts[chatroomName] = unreadCount;
                     saveUnreadCounts();
-                    
                     updateChatNotification(chatroomName, unreadCount);
-                    
+
                     if (!window.location.pathname.includes(chatroomName)) {
                         showNewMessageNotification(senderName, senderAvatar, messageBody);
                     }
-                    
+
                 } else if (data.type === 'unread_counts') {
                     if (data.counts) {
                         unreadCounts = data.counts;
                         saveUnreadCounts();
-                        
                         Object.keys(unreadCounts).forEach(chatroomName => {
                             if (unreadCounts[chatroomName] > 0) {
                                 updateChatNotification(chatroomName, unreadCounts[chatroomName]);
@@ -224,14 +225,12 @@
 
             onlineStatusSocket.onclose = function(e) {
                 console.log('Online Status WebSocket disconnected, reconnecting...');
-                updateOnlineCount(0, true);
                 updateOnlineInChat(false);
                 setTimeout(connectWebSocket, 3000);
             };
 
             onlineStatusSocket.onerror = function(e) {
                 console.error('Online Status WebSocket error:', e);
-                updateOnlineCount(0, true);
                 updateOnlineInChat(false);
             };
         }
@@ -240,44 +239,38 @@
         const mobileChatToggle = document.getElementById('mobile-chat-toggle');
         const mobileChatSidebar = document.getElementById('mobile-chat-sidebar');
         const mobileChatClose = document.getElementById('mobile-chat-close');
-        
+
         if (mobileChatToggle && mobileChatSidebar && mobileChatClose) {
             mobileChatToggle.addEventListener('click', (e) => {
                 e.preventDefault();
                 mobileChatSidebar.classList.remove('-translate-x-full');
             });
-            
+
             mobileChatClose.addEventListener('click', (e) => {
                 e.preventDefault();
                 mobileChatSidebar.classList.add('-translate-x-full');
             });
         }
 
-        // When clicking on a chat link
         document.addEventListener('click', function(e) {
             const chatLink = e.target.closest('#chats-list a, #mobile-chat-sidebar a');
             if (chatLink) {
                 e.preventDefault();
                 const chatUrl = chatLink.getAttribute('href');
                 const chatroomName = chatUrl.split('/').pop();
-                
-                // Clear indicators immediately
                 clearUnreadIndicators(chatroomName);
-                
-                // Notify server
+
                 if (onlineStatusSocket.readyState === WebSocket.OPEN) {
                     onlineStatusSocket.send(JSON.stringify({
                         'type': 'mark_chat_read',
                         'chatroom_name': chatroomName
                     }));
                 }
-                
-                // Close mobile sidebar if open
+
                 if (mobileChatSidebar && !mobileChatSidebar.classList.contains('-translate-x-full')) {
                     mobileChatSidebar.classList.add('-translate-x-full');
                 }
-                
-                // Navigate after handling indicators
+
                 setTimeout(() => {
                     window.location.href = chatUrl;
                 }, 100);
@@ -293,18 +286,17 @@
 
         function updateChatNotification(chatroomName, unreadCount) {
             const chatLinks = document.querySelectorAll(`a[href*="${chatroomName}"]`);
-            
             chatLinks.forEach(chatLink => {
                 let dot = chatLink.querySelector('.notification-dot');
                 let countBadge = chatLink.querySelector('.unread-count');
-                
+
                 if (unreadCount > 0) {
                     if (!dot) {
                         dot = document.createElement('div');
                         dot.className = 'notification-dot absolute top-1 right-1 z-20 w-1.5 h-1.5 bg-red-500 rounded-full';
                         chatLink.appendChild(dot);
                     }
-                    
+
                     if (unreadCount > 1) {
                         if (!countBadge) {
                             countBadge = document.createElement('span');
@@ -351,27 +343,16 @@
             }
         }
 
-        function updateOnlineCount(count, isError = false) {
-            const display = document.querySelector('#online-count-display');
-            if (display) {
-                if (isError) {
-                    display.textContent = 'Offline';
-                    display.className = 'bg-gray-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
-                } else if (count > 0) {
-                    display.textContent = `${count} online`;
-                    display.className = 'bg-green-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
-                } else {
-                    display.textContent = '0 online';
-                    display.className = 'bg-gray-500 rounded-md pt-0.5 pb-1 px-1.5 text-white text-xs ml-3';
-                }
-            }
+        // 🟢 Now only handles per-chat status, not global count
+        function updateOnlineCount() {
+            return;
         }
 
         function updateOnlineInChat(isOnline) {
             const onlineInChat = document.querySelector('#online-in-chat');
             if (onlineInChat) {
-                onlineInChat.innerHTML = isOnline ? 
-                    '<div class="green-dot"></div>' : 
+                onlineInChat.innerHTML = isOnline ?
+                    '<div class="green-dot"></div>' :
                     '<div class="graylight-dot"></div>';
             }
         }
@@ -391,7 +372,7 @@
         function showNewMessageNotification(senderName, senderAvatar, messageText) {
             const sound = new Audio('{% static "sounds/notification.mp3" %}');
             sound.play().catch(e => console.log("Notification sound play failed:", e));
-            
+
             if (Notification.permission === "granted") {
                 const options = {
                     body: messageText || 'New message received',
@@ -399,16 +380,15 @@
                     vibrate: [200, 100, 200],
                     tag: 'new-message-' + Date.now()
                 };
-                
                 new Notification(`Message from ${senderName}`, options);
             }
         }
 
-        // Initiate WebSocket connection
         connectWebSocket();
         requestNotificationPermission();
     });
 </script>
+
 
 <style>
     .green-dot {

@@ -8,6 +8,8 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+global_online_users = set()
+
 class ChatroomConsumer(WebsocketConsumer):
     def connect(self):
         self.user = self.scope['user']
@@ -496,3 +498,33 @@ class OnlineStatusConsumer(WebsocketConsumer):
         # Update unread counts and online status
         self.send_unread_counts()
         self.online_status()
+
+
+class GlobalOnlineConsumer(WebsocketConsumer):
+    def connect(self):
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            global_online_users.add(self.user.id)
+        self.group_name = "global_online_users"
+        async_to_sync(self.channel_layer.group_add)(self.group_name, self.channel_name)
+        self.accept()
+        self.send_online_count()
+
+    def disconnect(self, close_code):
+        if self.user.is_authenticated:
+            global_online_users.discard(self.user.id)
+        async_to_sync(self.channel_layer.group_discard)(self.group_name, self.channel_name)
+        self.send_online_count()
+
+    def send_online_count(self):
+        event = {
+            'type': 'online_count_event',
+            'count': len(global_online_users)
+        }
+        async_to_sync(self.channel_layer.group_send)(self.group_name, event)
+
+    def online_count_event(self, event):
+        self.send(text_data=json.dumps({
+            'type': 'global_online_count',
+            'count': event['count']
+        }))
