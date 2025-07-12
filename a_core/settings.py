@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,11 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-rj#-z^kx3j+1ay397otg6j8m_8#v^$^$jys6&41vy^&6le)ezc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*', 'https://chat.askseo.me' ]
-ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = [ 'https://*',  'https://chat.askseo.me']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'chat.askseo.me']
+CSRF_TRUSTED_ORIGINS = ['https://chat.askseo.me']
 
 
 # Application definition
@@ -56,6 +55,7 @@ INSTALLED_APPS = [
 SITE_ID = 1
 
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -95,7 +95,10 @@ ASGI_APPLICATION = 'a_core.asgi.application'
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [("127.0.0.1", 6379)],
+        },
     },
 }
 # Database
@@ -142,7 +145,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
-import os
+
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -162,11 +165,11 @@ LOGIN_REDIRECT_URL = '/'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 ACCOUNT_LOGIN_METHODS = {'email'}
 
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 # Authentication settings
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_SIGNUP_FIELDS = ['email', 'password1', 'password2']
-ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_ADAPTER = 'a_users.adapters.CustomAccountAdapter'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_USERNAME_REQUIRED = False
 
