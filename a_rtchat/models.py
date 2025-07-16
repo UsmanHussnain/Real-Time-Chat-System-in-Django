@@ -5,7 +5,7 @@ from django.conf import settings
 import shortuuid
 
 class ChatGroup(models.Model):
-    group_name = models.CharField(max_length=128, unique=True, default=shortuuid.uuid())
+    group_name = models.CharField(max_length=128, unique=True)
     groupchat_name = models.CharField(max_length=128, blank=True, null=True)
     admin = models.ForeignKey(User, related_name='groupchats', blank=True, null=True, on_delete=models.SET_NULL)
     user_online = models.ManyToManyField(

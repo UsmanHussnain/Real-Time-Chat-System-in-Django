@@ -12,6 +12,13 @@ from django.template.loader import render_to_string
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 import json
+import shortuuid
+import uuid
+import time
+from django.db import IntegrityError
+import logging
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def chat_view(request, chatroom_name='public-chat'):
@@ -158,11 +165,26 @@ def create_groupchat(request):
     form = newGroupForm(request.POST or None)
     if request.method == 'POST':
         if form.is_valid():
-            new_groupchat = form.save(commit=False)
-            new_groupchat.admin = request.user
-            new_groupchat.save()
-            new_groupchat.members.add(request.user)
-            return redirect('chatroom', new_groupchat.group_name)
+            max_retries = 15  # Increased retry limit
+            for attempt in range(max_retries):
+                new_groupchat = form.save(commit=False)
+                new_groupchat.admin = request.user
+                timestamp = int(time.time() * 1000)
+                new_groupchat.group_name = f"group-{shortuuid.uuid()}-{timestamp}"  # Use full UUID
+                logger.debug(f"Attempt {attempt + 1}: Trying group_name={new_groupchat.group_name}")
+
+                try:
+                    new_groupchat.save()
+                    new_groupchat.members.add(request.user)
+                    messages.success(request, f"Group '{new_groupchat.groupchat_name}' created successfully!")
+                    logger.debug(f"Group created: {new_groupchat.group_name}")
+                    return redirect('chatroom', new_groupchat.group_name)
+                except IntegrityError as e:
+                    logger.error(f"IntegrityError on attempt {attempt + 1}: {e}, group_name={new_groupchat.group_name}")
+                    if attempt == max_retries - 1:
+                        messages.error(request, "Could not create unique group chat after multiple attempts. Please try again.")
+                        return redirect('home')
+                    continue
 
     context = {
         'form': form,
