@@ -147,7 +147,7 @@
                                <input type="text" name="body"
                                     placeholder="Type your message..."
                                     class="flex-1 bg-white text-black border border-black rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 md:px-4 md:py-2 rounded-md transition text-sm">
+                                <button type="submit" class="send-button bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 md:px-4 md:py-2 rounded-md transition text-sm">
                                     Send
                                 </button>
                             </form>
@@ -161,7 +161,7 @@
                                 {% csrf_token %}
                                 <input type="file" name="file" id="id_file"
                                 class="flex-1 bg-white text-black border border-black rounded-md px-3 py-1 md:px-4 md:py-1 text-xs md:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 md:px-4 md:py-2 rounded-md transition text-sm relative">
+                                <button type="submit" class=" send-button bg-green-600 hover:bg-green-700 text-white px-4 py-2 md:px-4 md:py-2 rounded-md transition text-sm relative">
                                     <span class="upload-text">Send File</span>
                                     <span class="upload-loader absolute inset-0 flex items-center justify-center hidden">
                                         <svg class="animate-spin h-3 w-3 md:h-4 md:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -654,6 +654,8 @@ input[type="file"] {
     border-radius: 0.375rem !important; /* rounded-md */
     font-size: 0.875rem; /* text-sm */
 }
-
+.send-button {
+    min-width: 100px;
+}
 </style>
 {% endblock %}
