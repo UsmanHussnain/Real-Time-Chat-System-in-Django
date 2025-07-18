@@ -158,6 +158,12 @@ class ChatroomConsumer(WebsocketConsumer):
     def file_handler(self, event):
         """Handle file upload messages"""
         message_id = event['message_id']
+        exclude_user_id = event.get('exclude_user_id')
+        
+        # Skip rendering for the excluded user (sender)
+        if exclude_user_id and self.user.id == int(exclude_user_id):
+            return
+        
         message = ChatMessage.objects.get(id=message_id)
         
         # Only handle message if created after user's join date
@@ -367,7 +373,8 @@ class OnlineStatusConsumer(WebsocketConsumer):
             'chatroom_name': chatroom_name
         }))
         
-        # Update online status
+        # Update unread counts and online status
+        self.send_unread_counts()
         self.online_status()
 
     def unread_message(self, event):

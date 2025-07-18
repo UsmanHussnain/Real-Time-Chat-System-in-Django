@@ -271,17 +271,20 @@ def chatroom_leave_view(request, chatroom_name):
 def chat_file_upload(request, chatroom_name):
     chat_group = get_object_or_404(ChatGroup, group_name=chatroom_name)
     if request.htmx and request.FILES:
-        file = request.FILES.get('file')
-        if file:
-            # Create the message
-            message = ChatMessage.objects.create(
-                file=file,
-                author=request.user,
-                group=chat_group,
-            )
+        files = request.FILES.getlist('file')  # Get list of uploaded files
+        if files:
+            channel_layer = get_channel_layer()
+            messages = []
             
-            # Mark as read for sender
-            message.read_by.add(request.user)
+            # Create a message for each file
+            for file in files:
+                message = ChatMessage.objects.create(
+                    file=file,
+                    author=request.user,
+                    group=chat_group,
+                )
+                message.read_by.add(request.user)  # Mark as read for sender
+                messages.append(message)
             
             # Get unread counts for notifications
             unread_counts = {}
@@ -291,7 +294,6 @@ def chat_file_upload(request, chatroom_name):
                     unread_counts[member.id] = unread_count
             
             # Send notifications to other members
-            channel_layer = get_channel_layer()
             for member in chat_group.members.all():
                 if member != request.user:
                     async_to_sync(channel_layer.group_send)(
@@ -307,17 +309,28 @@ def chat_file_upload(request, chatroom_name):
                         }
                     )
             
-            # Broadcast to all clients via WebSocket (no HTMX response for sender)
-            async_to_sync(channel_layer.group_send)(
-                chatroom_name,
-                {
-                    'type': 'file_handler',
-                    'message_id': message.id,
-                    'author_id': request.user.id,
-                }
-            )
+            # Broadcast each file message to all clients, excluding the sender
+            for message in messages:
+                async_to_sync(channel_layer.group_send)(
+                    chatroom_name,
+                    {
+                        'type': 'file_handler',
+                        'message_id': message.id,
+                        'author_id': request.user.id,
+                        'exclude_user_id': request.user.id  # Exclude the sender
+                    }
+                )
             
-            return HttpResponse(status=204)  # No content response to prevent duplicate rendering
+            # Render individual messages for the sender's response
+            html = ''
+            for message in messages:
+                context = {
+                    'message': message,
+                    'user': request.user,
+                    'chatgroup': chat_group,
+                }
+                html += render_to_string('a_rtchat/chat_message.html', context)
+            return HttpResponse(html)
     
     return HttpResponse(status=400)
 
